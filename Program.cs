@@ -258,15 +258,43 @@ namespace TestVkBot
                                     break;
 
                                 case 1: //профиль
-                                    sendMessageText = $"Ведется разработка этого модуля";
-                                    api.Messages.Send(new MessagesSendParams()
+
                                     {
-                                        PeerId = a.MessageNew.Message.FromId,
-                                        UserId = a.MessageNew.Message.UserId,
-                                        ChatId = a.MessageNew.Message.ChatId,
-                                        Message = sendMessageText,
-                                        RandomId = getRandomMessageId(),
-                                    });
+                                        using ApplicationContext db = new ApplicationContext();
+                                        forwardId = a.MessageNew.Message.UserId;
+
+                                        var currentUser = (from user in db.VkUsers
+                                                           where user.Id == forwardId
+                                                           select user).FirstOrDefault();
+
+                                        string userText = currentUser == null
+                                                          ? $"Пользователь с ID {forwardId} не найден."
+                                                          : $"[id{currentUser.Id}|{currentUser.FirstName}]: {currentUser.Rating}";
+
+                                        sendMessageText = $"&#127937; Информация о профиле:\r\n{userText}";
+                                        api.Messages.Send(new MessagesSendParams()
+                                        {
+                                            PeerId = a.MessageNew.Message.FromId,
+                                            UserId = a.MessageNew.Message.UserId,
+                                            ChatId = a.MessageNew.Message.ChatId,
+                                            Message = sendMessageText,
+                                            RandomId = getRandomMessageId()
+                                        });
+                                    }
+
+
+
+
+
+                                    //sendMessageText = $"Ведется разработка этого модуля";
+                                    //api.Messages.Send(new MessagesSendParams()
+                                    //{
+                                    //    PeerId = a.MessageNew.Message.FromId,
+                                    //    UserId = a.MessageNew.Message.UserId,
+                                    //    ChatId = a.MessageNew.Message.ChatId,
+                                    //    Message = sendMessageText,
+                                    //    RandomId = getRandomMessageId(),
+                                    //});
 
                                     break;
                                 case 2://рейтинг
@@ -276,7 +304,7 @@ namespace TestVkBot
                                                         orderby user.Rating descending
                                                         select user).Take(15).ToList();
 
-                                        string topUsersText = string.Join("\r\n", topUsers.Select((u, i) => $"{i + 1}. [id{u.Id}|{u.FirstName}]: {u.Rating}"));//{u.LastName}
+                                        string topUsersText = string.Join("\r\n", topUsers.Select((users, i) => $"№{i + 1}. [id{users.Id}|{users.FirstName}]: {users.Rating}"));//{u.LastName}
 
                                         sendMessageText = $"&#127937; Топ 15 пользователей:\r\n{topUsersText}";
                                         api.Messages.Send(new MessagesSendParams()
