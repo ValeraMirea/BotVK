@@ -218,7 +218,7 @@ namespace TestVkBot
                                             VkUser = new VkUser();      // создаем пользователя
                                             VkUser.Id = User_Rep_ID;    // задаем ему ID по ВК
                                             VkUser.FirstName = forwardName;     // задаем имя
-                                           // VkUser.LastName = LastName; // Задаем фамилимю 
+                                            VkUser.LastName = LastName; // Задаем фамилимю 
                                             db.VkUsers.Add(VkUser);     // добавляем в базу данных
                                         }
 
@@ -274,7 +274,7 @@ namespace TestVkBot
                                         using ApplicationContext db = new ApplicationContext();
                                         var topUsers = (from user in db.VkUsers
                                                         orderby user.Rating descending
-                                                        select user).Take(15).ToList();
+                                                        select user).Take(2).ToList();
 
                                         string topUsersText = string.Join("\r\n", topUsers.Select((u, i) => $"{i + 1}. [id{u.Id}|{u.FirstName}]: {u.Rating}"));//{u.LastName}
 
