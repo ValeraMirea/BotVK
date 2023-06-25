@@ -1,9 +1,14 @@
-﻿using VkNet;
+﻿using System;
+using System.Collections.Generic;
+using VkNet;
 using VkNet.Enums.SafetyEnums;
 using VkNet.Model;
 using VkNet.Model.RequestParams;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using Bot.DataBase;
 using VkNet.Model.Keyboard;
 using Microsoft.Data.SqlClient;
 using VkNet.Model.Attachments;
@@ -42,7 +47,7 @@ namespace TestVkBot
         public static string Login => File.ReadAllText("Login.txt"); //Токен для работы бота от имени админа
         private static int lastRandomId = 0;
         private static DictionaryData dictionaryData = new DictionaryData();
-        private static Dictionary<long, double> User_Data;
+        private static Dictionary<long, double> User_Data = new Dictionary<long, double>();
 
         // Dictionary<long, double> User_Data = new Dictionary<long, double>();
 
@@ -190,17 +195,49 @@ namespace TestVkBot
                                     else if (forwardId != null)
                                     {
                                         long User_Rep_ID = (long)forwardId;
-                                        if (!User_Data.ContainsKey(User_Rep_ID))
+                                        
+                                        // работа с БД
+                                        // создаем подключение
+                                        using ApplicationContext db = new ApplicationContext();
+                                        
+                                        // получаем информацию о пользователе
+                                        VkUser VkUser = null;
+                                        List<VkUser> FoundedUsers  = (from user in db.VkUsers
+                                                where user.Id.Equals(User_Rep_ID)
+                                                select user).ToList();      // ищем пользователя с таким ID
+
+                                        if (FoundedUsers.Count > 0) // если пользотватель найден 
                                         {
-                                            User_Data[User_Rep_ID] = 0.0;
+                                            VkUser = FoundedUsers[0];   // то будет массив из 1 элемента. Прост овытаскиваем пользователя из массива
                                         }
-                                        double User_Rep = User_Data[User_Rep_ID];
-                                        User_Rep += 0.3;
-                                        User_Data[User_Rep_ID] = Math.Round(User_Rep, 3, MidpointRounding.AwayFromZero);
-                                        User_Data.Add(User_Rep_ID, User_Rep);
-                                        dictionaryData.SaveDictionaryData(User_Data);
+                                        else    // если пользователя нет в базе данных
+                                        {
+                                            VkUser = new VkUser();      // создаем пользователя
+                                            VkUser.Id = User_Rep_ID;    // задаем ему ID по ВК
+                                            VkUser.FirstName = forwardName;     // задаем имя
+                                            db.VkUsers.Add(VkUser);     // добавляем в базу данных
+                                        }
+                                        
+                                        // добавляем репутацию
+                                        VkUser.Rating += 0.3;
+                                        
+                                        // сохраняем в БД
+                                        db.SaveChanges();
+                                        
                                         sendMessageText =
-                                        $"&#127942;Уважение оказано. Плюс 0,3 добавляется к карме пользователя [id{forwardId}|{forwardName}  {LastName}]. Текущий рейтинг: {Math.Round(User_Rep, 3, MidpointRounding.AwayFromZero)}";
+                                            $"&#127942;Уважение оказано. Плюс 0,3 добавляется к карме пользователя [id{forwardId}|{forwardName}  {LastName}]. Текущий рейтинг: {Math.Round(VkUser.Rating, 3, MidpointRounding.AwayFromZero)}";
+                                        
+                                        // if (!User_Data.ContainsKey(User_Rep_ID))
+                                        // {
+                                        //     User_Data[User_Rep_ID] = 0.0;
+                                        // }
+                                        // double User_Rep = User_Data[User_Rep_ID];
+                                        // User_Rep += 0.3;
+                                        // User_Data[User_Rep_ID] = Math.Round(User_Rep, 3, MidpointRounding.AwayFromZero);
+                                        // User_Data.Add(User_Rep_ID, User_Rep);
+                                        // dictionaryData.SaveDictionaryData(User_Data);
+                                        // sendMessageText =
+                                        // $"&#127942;Уважение оказано. Плюс 0,3 добавляется к карме пользователя [id{forwardId}|{forwardName}  {LastName}]. Текущий рейтинг: {Math.Round(User_Rep, 3, MidpointRounding.AwayFromZero)}";
 
                                     }
 
