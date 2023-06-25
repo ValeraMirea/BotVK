@@ -12,6 +12,9 @@ using Bot.DataBase;
 using VkNet.Model.Keyboard;
 using Microsoft.Data.SqlClient;
 using VkNet.Model.Attachments;
+using Bot;
+using Npgsql;
+using System.Text;
 
 namespace TestVkBot
 {
@@ -46,7 +49,7 @@ namespace TestVkBot
         public static ulong Group_Id => ulong.Parse(File.ReadAllText("ID_Group.txt"));   // Ид вашего сообщества или паблиа
         public static string Login => File.ReadAllText("Login.txt"); //Токен для работы бота от имени админа
         private static int lastRandomId = 0;
-        private static DictionaryData dictionaryData = new DictionaryData();
+        //private static DictionaryData dictionaryData = new DictionaryData();
         private static Dictionary<long, double> User_Data = new Dictionary<long, double>();
 
         // Dictionary<long, double> User_Data = new Dictionary<long, double>();
@@ -195,16 +198,16 @@ namespace TestVkBot
                                     else if (forwardId != null)
                                     {
                                         long User_Rep_ID = (long)forwardId;
-                                        
+
                                         // работа с БД
                                         // создаем подключение
                                         using ApplicationContext db = new ApplicationContext();
-                                        
+
                                         // получаем информацию о пользователе
                                         VkUser VkUser = null;
-                                        List<VkUser> FoundedUsers  = (from user in db.VkUsers
-                                                where user.Id.Equals(User_Rep_ID)
-                                                select user).ToList();      // ищем пользователя с таким ID
+                                        List<VkUser> FoundedUsers = (from user in db.VkUsers
+                                                                     where user.Id.Equals(User_Rep_ID)
+                                                                     select user).ToList();      // ищем пользователя с таким ID
 
                                         if (FoundedUsers.Count > 0) // если пользотватель найден 
                                         {
@@ -215,18 +218,20 @@ namespace TestVkBot
                                             VkUser = new VkUser();      // создаем пользователя
                                             VkUser.Id = User_Rep_ID;    // задаем ему ID по ВК
                                             VkUser.FirstName = forwardName;     // задаем имя
+                                           // VkUser.LastName = LastName; // Задаем фамилимю 
                                             db.VkUsers.Add(VkUser);     // добавляем в базу данных
                                         }
-                                        
+
                                         // добавляем репутацию
                                         VkUser.Rating += 0.3;
-                                        
+                                        VkUser.Rating = Math.Round(VkUser.Rating, 3);
+
                                         // сохраняем в БД
                                         db.SaveChanges();
-                                        
+
                                         sendMessageText =
-                                            $"&#127942;Уважение оказано. Плюс 0,3 добавляется к карме пользователя [id{forwardId}|{forwardName}  {LastName}]. Текущий рейтинг: {Math.Round(VkUser.Rating, 3, MidpointRounding.AwayFromZero)}";
-                                        
+                                            $"&#127942;Уважение оказано. Плюс 0,3 добавляется к карме пользователя [id{forwardId}|{forwardName} {LastName}]. Текущий рейтинг: {Math.Round(VkUser.Rating, 3, MidpointRounding.AwayFromZero)}";
+
                                         // if (!User_Data.ContainsKey(User_Rep_ID))
                                         // {
                                         //     User_Data[User_Rep_ID] = 0.0;
@@ -252,7 +257,7 @@ namespace TestVkBot
                                     });
                                     break;
 
-                                case 1:
+                                case 1: //профиль
                                     sendMessageText = $"Ведется разработка этого модуля";
                                     api.Messages.Send(new MessagesSendParams()
                                     {
@@ -264,72 +269,24 @@ namespace TestVkBot
                                     });
 
                                     break;
-                                case 2:
-                                    List<Tuple<string, double>> TopRating = new List<Tuple<string, double>>(); // создаём список, в котором будем хранить рейтинги для топа
-                                    foreach (var user in User_Data)
+                                case 2://рейтинг
                                     {
-                                        forwardName = api.Users.Get(new[] { (long)user.Key }, null, NameCase.Nom)[0].FirstName;    // получаем имя
-                                        LastName = api.Users.Get(new[] { (long)user.Key }, null, NameCase.Nom)[0].LastName;
-                                        var person = $"[id{user.Key}|{forwardName}  {LastName}]";  // формируем строку для ссылки
-                                        TopRating.Add(Tuple.Create(person, user.Value));
+                                        using ApplicationContext db = new ApplicationContext();
+                                        var topUsers = (from user in db.VkUsers
+                                                        orderby user.Rating descending
+                                                        select user).Take(15).ToList();
+
+                                        string topUsersText = string.Join("\r\n", topUsers.Select((u, i) => $"{i + 1}. [id{u.Id}|{u.FirstName}]: {u.Rating}"));//{u.LastName}
+
+                                        sendMessageText = $"&#127937; Топ 15 пользователей:\r\n{topUsersText}";
+                                        api.Messages.Send(new MessagesSendParams()
+                                        {
+                                            PeerId = a.MessageNew.Message.FromId,
+                                            Message = sendMessageText,
+                                            RandomId = getRandomMessageId()
+                                        });
                                     }
-
-                                    TopRating.Sort   // выполняем сортироовку полученного списка
-                                    (
-                                    comparison: delegate (Tuple<string, double> tuple, Tuple<string, double> tuplel)
-                                    {
-                                        if (tuple.Item2 < tuplel.Item2)
-                                        {
-                                            return 1;
-                                        }
-
-                                        else if (tuple.Item2 > tuplel.Item2)
-                                        {
-                                            return -1;
-                                        }
-                                        else
-                                        {
-                                            return 0;
-                                        }
-                                    }
-                                    );
-                                    var Rating_data = new List<string>();
-                                    for (int i = 0; i < TopRating.Count; i++)
-                                    {
-                                        if (i == 0)
-                                        {
-                                            Rating_data.Add($"№{i + 1}&#129351;      {TopRating[i]}");
-                                        }
-                                        if (i == 1)
-                                        {
-                                            Rating_data.Add($"№{i + 1}&#129352;      {TopRating[i]}");
-                                        }
-                                        if (i == 2)
-                                        {
-                                            Rating_data.Add($"№{i + 1}&#129353;      {TopRating[i]}");
-                                        }
-                                        if (i >= 3 && i <= 14)
-                                        {
-                                            Rating_data.Add($"№{i + 1}. {TopRating[i]}");
-                                        }
-
-
-
-                                        // Console.WriteLine(TopRating[i]);
-
-                                    }
-                                    string Beautiful_message = string.Join("\r\n", Rating_data.ToArray());
-                                    sendMessageText = $"&#127937;Топ 15 пользователей:  \r\n  {Beautiful_message}";
-                                    api.Messages.Send(new MessagesSendParams()
-                                    {
-
-                                        PeerId = a.MessageNew.Message.FromId,
-                                        UserId = a.MessageNew.Message.UserId,
-                                        ChatId = a.MessageNew.Message.ChatId,
-                                        Message = sendMessageText,
-                                        RandomId = getRandomMessageId()
-                                    });
-
+                                  
                                     break;
                                 case 3:
                                     api.Messages.Send(new MessagesSendParams()
@@ -423,7 +380,7 @@ namespace TestVkBot
                                         //User_Req += 1;
                                         //User_Data[User_Req_ID] = Math.Round(User_Req, 3, MidpointRounding.AwayFromZero);
                                         sendMessageText =
-                                            $"Пользователь [id{forwardId_1}|{forwardName_1}  {LastName_1}] подает жалобу на пользователя [id{forwardId}|{forwardName}   {LastName}], Ожидайте решение администратора беседы";
+                                            $"Пользователь [id{forwardId_1}|{forwardName_1} {LastName_1}] подает жалобу на пользователя [id{forwardId}|{forwardName} {LastName}], Ожидайте решение администратора беседы";
 
                                     }
 
@@ -539,16 +496,49 @@ namespace TestVkBot
                                     }
                                     else if (forwardId != null)
                                     {
+                                        //long User_Rep_ID = (long)forwardId;
+                                        //if (!User_Data.ContainsKey(User_Rep_ID))
+                                        //{
+                                        //    User_Data[User_Rep_ID] = 0.0;
+                                        //}
+                                        //double User_Rep = User_Data[User_Rep_ID];
+                                        //User_Rep -= 0.04;
+                                        //User_Data[User_Rep_ID] = Math.Round(User_Rep, 3, MidpointRounding.AwayFromZero);
+
                                         long User_Rep_ID = (long)forwardId;
-                                        if (!User_Data.ContainsKey(User_Rep_ID))
+
+                                        // работа с БД
+                                        // создаем подключение
+                                        using ApplicationContext db = new ApplicationContext();
+
+                                        // получаем информацию о пользователе
+                                        VkUser VkUser = null;
+                                        List<VkUser> FoundedUsers = (from user in db.VkUsers
+                                                                     where user.Id.Equals(User_Rep_ID)
+                                                                     select user).ToList();      // ищем пользователя с таким ID
+
+                                        if (FoundedUsers.Count > 0) // если пользотватель найден 
                                         {
-                                            User_Data[User_Rep_ID] = 0.0;
+                                            VkUser = FoundedUsers[0];   // то будет массив из 1 элемента. Просто вытаскиваем пользователя из массива
                                         }
-                                        double User_Rep = User_Data[User_Rep_ID];
-                                        User_Rep -= 0.04;
-                                        User_Data[User_Rep_ID] = Math.Round(User_Rep, 3, MidpointRounding.AwayFromZero);
+                                        else    // если пользователя нет в базе данных
+                                        {
+                                            VkUser = new VkUser();      // создаем пользователя
+                                            VkUser.Id = User_Rep_ID;    // задаем ему ID по ВК
+                                            VkUser.FirstName = forwardName;     // задаем имя
+                                            //VkUser.LastName = LastName; // Задаем фамилимю 
+                                            db.VkUsers.Add(VkUser);     // добавляем в базу данных
+                                        }
+
+                                        // Отнимаем репутацию
+                                        VkUser.Rating -= 0.04;
+                                        VkUser.Rating = Math.Round(VkUser.Rating, 3);
+
+                                        // сохраняем в БД
+                                        db.SaveChanges();
+
                                         sendMessageText =
-                                        $"&#128520;Осуждение оказано. Минус 0,04 отнимается от кармы пользователя [id{forwardId}|{forwardName}  {LastName}]. Текущий рейтинг: {Math.Round(User_Rep, 3, MidpointRounding.AwayFromZero)}";
+                                        $"&#128520;Осуждение оказано. Минус 0,04 отнимается от кармы пользователя [id{forwardId}|{forwardName} {LastName}]. Текущий рейтинг: {Math.Round(VkUser.Rating, 3, MidpointRounding.AwayFromZero)}";
 
                                     }
 
@@ -585,16 +575,49 @@ namespace TestVkBot
                                         forwardId = a.MessageNew.Message.FromId;
                                         forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName;
                                         LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
+
                                         long User_Rep_ID = (long)forwardId;
-                                        if (!User_Data.ContainsKey(User_Rep_ID))
+
+                                        // работа с БД
+                                        // создаем подключение
+                                        using ApplicationContext db = new ApplicationContext();
+
+                                        // получаем информацию о пользователе
+                                        VkUser VkUser = null;
+                                        List<VkUser> FoundedUsers = (from user in db.VkUsers
+                                                                     where user.Id.Equals(User_Rep_ID)
+                                                                     select user).ToList();      // ищем пользователя с таким ID
+
+                                        if (FoundedUsers.Count > 0) // если пользотватель найден 
                                         {
-                                            User_Data[User_Rep_ID] = 0.0;
+                                            VkUser = FoundedUsers[0];   // то будет массив из 1 элемента. Просто вытаскиваем пользователя из массива
                                         }
-                                        double User_Rep = User_Data[User_Rep_ID];
-                                        User_Rep += 5.0;
-                                        User_Data[User_Rep_ID] = Math.Round(User_Rep, 3, MidpointRounding.AwayFromZero);
-                                        //User_Rating = User_Rating + 5.0;
-                                        ruletkaMessage = $"&#129312; {Win} Плюс 5 к карме пользоваеля [id{forwardId}|{forwardName}  {LastName}]. Текущий рейтинг: {Math.Round(User_Rep, 3, MidpointRounding.AwayFromZero)}";
+                                        else    // если пользователя нет в базе данных
+                                        {
+                                            VkUser = new VkUser();      // создаем пользователя
+                                            VkUser.Id = User_Rep_ID;    // задаем ему ID по ВК
+                                            VkUser.FirstName = forwardName;     // задаем имя
+                                            db.VkUsers.Add(VkUser);     // добавляем в базу данных
+                                        }
+
+                                        // Добавляем репутацию за рулетку
+                                        VkUser.Rating += 5.01;
+                                        VkUser.Rating = Math.Round(VkUser.Rating, 3);
+
+                                        // сохраняем в БД
+                                        db.SaveChanges();
+
+
+
+                                        //if (!User_Data.ContainsKey(User_Rep_ID))
+                                        //{
+                                        //    User_Data[User_Rep_ID] = 0.0;
+                                        //}
+                                        //double User_Rep = User_Data[User_Rep_ID];
+                                        //User_Rep += 5.0;
+                                        //User_Data[User_Rep_ID] = Math.Round(User_Rep, 3, MidpointRounding.AwayFromZero);
+                                        ////User_Rating = User_Rating + 5.0;
+                                        ruletkaMessage = $"&#129312; {Win} Плюс 5 к карме пользоваеля [id{forwardId}|{forwardName} {LastName}]. Текущий рейтинг: {Math.Round(VkUser.Rating, 3, MidpointRounding.AwayFromZero)}";
                                     }
                                     else // если проиграл
                                     {
@@ -602,15 +625,44 @@ namespace TestVkBot
                                         forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName;
                                         LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
                                         long User_Rep_ID = (long)forwardId;
-                                        if (!User_Data.ContainsKey(User_Rep_ID))
-                                        {
-                                            User_Data[User_Rep_ID] = 0.0;
-                                        }
-                                        double User_Rep = User_Data[User_Rep_ID];
-                                        User_Rep -= 7.0;
-                                        User_Data[User_Rep_ID] = Math.Round(User_Rep, 3, MidpointRounding.AwayFromZero);
+                                        //if (!User_Data.ContainsKey(User_Rep_ID))
+                                        //{
+                                        //    User_Data[User_Rep_ID] = 0.0;
+                                        //}
+                                        //double User_Rep = User_Data[User_Rep_ID];
+                                        //User_Rep -= 7.0;
+                                        //User_Data[User_Rep_ID] = Math.Round(User_Rep, 3, MidpointRounding.AwayFromZero);
                                         //User_Rating = User_Rating - 7.0;
-                                        ruletkaMessage = $"&#128128; {Lose} Минус 7 от кармы пользователя [id{forwardId}|{forwardName}  {LastName}]. Текущий рейтинг: {Math.Round(User_Rep, 3, MidpointRounding.AwayFromZero)}";
+                                        // работа с БД
+                                        // создаем подключение
+                                        using ApplicationContext db = new ApplicationContext();
+
+                                        // получаем информацию о пользователе
+                                        VkUser VkUser = null;
+                                        List<VkUser> FoundedUsers = (from user in db.VkUsers
+                                                                     where user.Id.Equals(User_Rep_ID)
+                                                                     select user).ToList();      // ищем пользователя с таким ID
+
+                                        if (FoundedUsers.Count > 0) // если пользотватель найден 
+                                        {
+                                            VkUser = FoundedUsers[0];   // то будет массив из 1 элемента. Просто вытаскиваем пользователя из массива
+                                        }
+                                        else    // если пользователя нет в базе данных
+                                        {
+                                            VkUser = new VkUser();      // создаем пользователя
+                                            VkUser.Id = User_Rep_ID;    // задаем ему ID по ВК
+                                            VkUser.FirstName = forwardName;     // задаем имя
+                                            db.VkUsers.Add(VkUser);     // добавляем в базу данных
+                                        }
+
+                                        // Отнимаем репутацию за рулетку
+                                        VkUser.Rating -= 7.07;
+                                        VkUser.Rating = Math.Round(VkUser.Rating, 3);
+
+                                        // сохраняем в БД
+                                        db.SaveChanges();
+
+                                        ruletkaMessage = $"&#128128; {Lose} Минус 7 от кармы пользователя [id{forwardId}|{forwardName} {LastName}]. Текущий рейтинг: {Math.Round(VkUser.Rating, 3, MidpointRounding.AwayFromZero)}";
                                     }
 
 
@@ -1320,64 +1372,64 @@ namespace TestVkBot
             // Console.WriteLine("random: " + lastRandomId);
             return rand;
         }
-        public class DictionaryData
-        {
-            string connectionString = "Data Source=localhost;Initial Catalog=user;User ID=root;Password=root;";
+        //public class DictionaryData
+        //{
+        //    string connectionString = "Data Source=localhost;Initial Catalog=user;User ID=root;Password=root;";
 
-            public Dictionary<long, double> GetDictionaryData()
-            {
-                Dictionary<long, double> data = new Dictionary<long, double>();
-                try
-                {
-                    using (SqlConnection connection = new SqlConnection(connectionString))
-                    {
-                        connection.Open();
-                        SqlCommand command = new SqlCommand("SELECT * FROM DictionaryData", connection);
-                        SqlDataReader reader = command.ExecuteReader();
-                        while (reader.Read())
-                        {
-                            long key = reader.GetInt16(0);
-                            double value = reader.GetInt32(1);
-                            data.Add(key, value);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("Error: " + ex.Message);
-                }
-                return data;
-            }
+        //    public Dictionary<long, double> GetDictionaryData()
+        //    {
+        //        Dictionary<long, double> data = new Dictionary<long, double>();
+        //        try
+        //        {
+        //            using (SqlConnection connection = new SqlConnection(connectionString))
+        //            {
+        //                connection.Open();
+        //                SqlCommand command = new SqlCommand("SELECT * FROM DictionaryData", connection);
+        //                SqlDataReader reader = command.ExecuteReader();
+        //                while (reader.Read())
+        //                {
+        //                    long key = reader.GetInt16(0);
+        //                    double value = reader.GetInt32(1);
+        //                    data.Add(key, value);
+        //                }
+        //            }
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            Console.WriteLine("Error: " + ex.Message);
+        //        }
+        //        return data;
+        //    }
 
-            public void SaveDictionaryData(Dictionary<long, double> data)
-            {
-                try
-                {
-                    using (SqlConnection connection = new SqlConnection(connectionString))
-                    {
-                        connection.Open();
-                        foreach (KeyValuePair<long, double> item in data)
-                        {
-                            SqlCommand command = new SqlCommand("IF EXISTS (SELECT * FROM DictionaryData WHERE KeyColumn = @Key) " +
-                                                                "BEGIN " +
-                                                                 "UPDATE DictionaryData SET ValueColumn = @Value WHERE KeyColumn = @Key " +
-                                                                "END " +
-                                                                "ELSE " +
-                                                                "BEGIN " +
-                                                                 "INSERT INTO DictionaryData (KeyColumn, ValueColumn) VALUES (@Key, @Value) " +
-                                                                "END", connection);
-                            command.Parameters.AddWithValue("@Key", item.Key);
-                            command.Parameters.AddWithValue("@Value", item.Value);
-                            command.ExecuteNonQuery();
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("Error: " + ex.Message);
-                }
-            }
-        }
+        //    public void SaveDictionaryData(Dictionary<long, double> data)
+        //    {
+        //        try
+        //        {
+        //            using (SqlConnection connection = new SqlConnection(connectionString))
+        //            {
+        //                connection.Open();
+        //                foreach (KeyValuePair<long, double> item in data)
+        //                {
+        //                    SqlCommand command = new SqlCommand("IF EXISTS (SELECT * FROM DictionaryData WHERE KeyColumn = @Key) " +
+        //                                                        "BEGIN " +
+        //                                                         "UPDATE DictionaryData SET ValueColumn = @Value WHERE KeyColumn = @Key " +
+        //                                                        "END " +
+        //                                                        "ELSE " +
+        //                                                        "BEGIN " +
+        //                                                         "INSERT INTO DictionaryData (KeyColumn, ValueColumn) VALUES (@Key, @Value) " +
+        //                                                        "END", connection);
+        //                    command.Parameters.AddWithValue("@Key", item.Key);
+        //                    command.Parameters.AddWithValue("@Value", item.Value);
+        //                    command.ExecuteNonQuery();
+        //                }
+        //            }
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            Console.WriteLine("Error: " + ex.Message);
+        //        }
+        //    }
+        //}
 
     }
     
