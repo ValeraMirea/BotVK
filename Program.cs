@@ -1,21 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using VkNet;
+﻿using VkNet;
 using VkNet.Enums.SafetyEnums;
 using VkNet.Model;
 using VkNet.Model.RequestParams;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using Bot.DataBase;
 using VkNet.Model.Keyboard;
-using Microsoft.Data.SqlClient;
-using VkNet.Model.Attachments;
-using Bot;
-using Npgsql;
-using System.Text;
-using VkNet.Enums.Filters;
 
 namespace TestVkBot
 {
@@ -30,7 +20,6 @@ namespace TestVkBot
         public static ulong Group_Id => ulong.Parse(File.ReadAllText("ID_Group.txt"));   // Ид вашего сообщества или паблиа
         public static string Login => File.ReadAllText("Login.txt"); //Токен для работы бота от имени админа
         private static int lastRandomId = 0;
-        private static Dictionary<long, double> User_Data = new Dictionary<long, double>();
 
         [Obsolete]
         public static void Main(string[] args)
@@ -392,12 +381,13 @@ namespace TestVkBot
                                         PeerId = a.MessageNew.Message.PeerId,
                                         UserId = a.MessageNew.Message.UserId,
                                         ChatId = a.MessageNew.Message.ChatId,
-                                        Message = $"Список доступных команд:" + "\r\n" + "\r\n" +
+                                        Message = 
+                                        $"Список доступных команд:" + "\r\n" + "\r\n" +
                                         $"&#128526; +реп - поднимаешь репутацию собеседнику" + "\r\n" + "\r\n" +
                                         $"&#128520; -реп - снимаешь репутацию собеседнику" + "\r\n" + "\r\n" +
                                         $"&#128100; /профиль - показывает профиль в беседе" + "\r\n" + "\r\n" +
                                         $"&#129312; /рулетка - испытай свою удачу в русской рулетке" + "\r\n" + "\r\n" +
-                                        $"&#128695; /жалоба - подать жалобу на собеседника" + "\r\n" + "\r\n" +
+                                        //$"&#128695; /жалоба - подать жалобу на собеседника" + "\r\n" + "\r\n" +
                                         $"&#128736; /предложение - внести улучшения/изменения в работу бота" + "\r\n" + "\r\n" +
                                         $"&#128176; /покупка репутации - волшебный магазин, где можно обменять опыт на репутацию" + "\r\n" + "\r\n" +
                                         $"&#10067; Faq - получение информации на самые часто задоваемые вопросы" + "\r\n" + "\r\n" +
@@ -405,127 +395,134 @@ namespace TestVkBot
                                         RandomId = getRandomMessageId()
                                     });
                                     break;
-                                case 4: //жалоба
-                                    replyMessage = a.MessageNew.Message.ReplyMessage;
-                                    sendMessageText = "Вы не указали, на кого хотите подать жалобу"; // сообщение, которое отправится пользователю (дефолтное значение - ошибка)
-
                                     forwardId = null;
                                     forwardName = "";
                                     LastName = "";
                                     var forwardId_1 = a.MessageNew.Message.FromId; // вытаскиваем ID того, кто кидает жалобу
                                     var forwardName_1 = api.Users.Get(new[] { (long)forwardId_1 }, null, NameCase.Nom)[0].FirstName;
                                     var LastName_1 = api.Users.Get(new[] { (long)forwardId_1 }, null, NameCase.Nom)[0].LastName;
-                                    if (replyMessage == null) // если нет ответа на сообщение, значит пытаемся вытащить через @
-                                    {
-                                        // ищем через регулярное выражение, кому отправляют жалобу
-                                        Regex regex = new Regex(@"[0-9]*\|");
-                                        MatchCollection matches = regex.Matches(messageText);
+                                case 4: //жалоба
+                                //    replyMessage = a.MessageNew.Message.ReplyMessage;
+                                //    sendMessageText = "Вы не указали, на кого хотите подать жалобу"; // сообщение, которое отправится пользователю (дефолтное значение - ошибка)
 
-                                        if (matches.Count > 0) // если в сообщении указан ID
-                                        {
-                                            Regex regex_1 = new Regex(@"club[0-9]*\|");
-                                            MatchCollection match = regex_1.Matches(messageText);
-                                            if (match.Count > 0)
-                                            {
-                                                sendMessageText = $"Выдавать и упоминать ботов - это неуважение к собеседникам 👊";
-                                            }
-                                            else
-                                            {
-                                                // на входе будет найдено что-то вида 122345|, убираем | и конвертируем в long
-                                                forwardId = long.Parse(matches[0].Value.Replace("|", "")); // вытаскиваем ID того, кому даётся жалоба
-                                                forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName; // получаем Имя того, кому даем жалобу
-                                                LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
-                                            }
+                                //    forwardId = null;
+                                //    forwardName = "";
+                                //    LastName = "";
+                                //    var forwardId_1 = a.MessageNew.Message.FromId; // вытаскиваем ID того, кто кидает жалобу
+                                //    var forwardName_1 = api.Users.Get(new[] { (long)forwardId_1 }, null, NameCase.Nom)[0].FirstName;
+                                //    var LastName_1 = api.Users.Get(new[] { (long)forwardId_1 }, null, NameCase.Nom)[0].LastName;
+                                //    if (replyMessage == null) // если нет ответа на сообщение, значит пытаемся вытащить через @
+                                //    {
+                                //        // ищем через регулярное выражение, кому отправляют жалобу
+                                //        Regex regex = new Regex(@"[0-9]*\|");
+                                //        MatchCollection matches = regex.Matches(messageText);
 
-
-                                        }
-                                    }
-                                    else // если это ответ на какое-то сообщение
-                                    {
-                                        if (replyMessage.FromId < 0)
-                                        {
-                                            sendMessageText = $"Я всего лишь бот. За что на меня жаловаться - то?!";
-                                        }
-                                        else
-                                        {
-                                            forwardId = replyMessage.FromId; // вытаскиваем ID того, кому даётся репутация
-                                            forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName; // получаем Имя того, кому даем жалобу
-                                            LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
-                                        }
-                                    }
+                                //        if (matches.Count > 0) // если в сообщении указан ID
+                                //        {
+                                //            Regex regex_1 = new Regex(@"club[0-9]*\|");
+                                //            MatchCollection match = regex_1.Matches(messageText);
+                                //            if (match.Count > 0)
+                                //            {
+                                //                sendMessageText = $"Выдавать и упоминать ботов - это неуважение к собеседникам 👊";
+                                //            }
+                                //            else
+                                //            {
+                                //                // на входе будет найдено что-то вида 122345|, убираем | и конвертируем в long
+                                //                forwardId = long.Parse(matches[0].Value.Replace("|", "")); // вытаскиваем ID того, кому даётся жалоба
+                                //                forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName; // получаем Имя того, кому даем жалобу
+                                //                LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
+                                //            }
 
 
-                                    if (forwardId != null && forwardId.Equals(a.MessageNew.Message.FromId))
-                                    {
-                                        Random light = new Random();
-                                        int answer = light.Next(1, 4);
-                                        switch (answer)
-                                        {
-                                            case 0:
-                                                sendMessageText = $"&#128552; Что-то здесь не так, а вот что остается загадкой и для тебя, и для меня &#128521;";
-                                                break;
-                                            case 1:
-                                                sendMessageText = $"&#128552; Вы пишете загадодками написано, пойду к Гадалке схожу, пусть она мне раскроет мне эту тайну &#128302;";
-                                                break;
-                                            case 2:
-                                                sendMessageText = $"Полисмены проделали блестящую работу, уничтожив любые улики… " + "\r\n" + "Жаль, что я не шерлок Холмс, чтобы раскрыть ваш обман";
-                                                break;
-                                            case 3:
-                                                sendMessageText = $"Чем ты сам себе не угодил? Пойди и выспесь лучше)";
-                                                break;
+                                //        }
+                                //    }
+                                //    else // если это ответ на какое-то сообщение
+                                //    {
+                                //        if (replyMessage.FromId < 0)
+                                //        {
+                                //            sendMessageText = $"Я всего лишь бот. За что на меня жаловаться - то?!";
+                                //        }
+                                //        else
+                                //        {
+                                //            forwardId = replyMessage.FromId; // вытаскиваем ID того, кому даётся репутация
+                                //            forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName; // получаем Имя того, кому даем жалобу
+                                //            LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
+                                //        }
+                                //    }
 
-                                        }
-                                    }
-                                    else if (forwardId != null)
-                                    {
-                                        //long User_Req_ID = (long)forwardId;
-                                        //if (!User_Data.ContainsKey(User_Req_ID))
-                                        //{
-                                        //    User_Data[User_Req_ID] = 0.0;
-                                        //}
-                                        //double User_Req = User_Data[User_Req_ID];
-                                        //User_Req += 1;
-                                        //User_Data[User_Req_ID] = Math.Round(User_Req, 3, MidpointRounding.AwayFromZero);
-                                        sendMessageText =
-                                            $"Пользователь [id{forwardId_1}|{forwardName_1} {LastName_1}] подает жалобу на пользователя [id{forwardId}|{forwardName} {LastName}], Ожидайте решение администратора беседы";
 
-                                    }
+                                //    if (forwardId != null && forwardId.Equals(a.MessageNew.Message.FromId))
+                                //    {
+                                //        Random light = new Random();
+                                //        int answer = light.Next(1, 4);
+                                //        switch (answer)
+                                //        {
+                                //            case 0:
+                                //                sendMessageText = $"&#128552; Что-то здесь не так, а вот что остается загадкой и для тебя, и для меня &#128521;";
+                                //                break;
+                                //            case 1:
+                                //                sendMessageText = $"&#128552; Вы пишете загадодками написано, пойду к Гадалке схожу, пусть она мне раскроет мне эту тайну &#128302;";
+                                //                break;
+                                //            case 2:
+                                //                sendMessageText = $"Полисмены проделали блестящую работу, уничтожив любые улики… " + "\r\n" + "Жаль, что я не шерлок Холмс, чтобы раскрыть ваш обман";
+                                //                break;
+                                //            case 3:
+                                //                sendMessageText = $"Чем ты сам себе не угодил? Пойди и выспесь лучше)";
+                                //                break;
 
-                                    api.Messages.Send(new MessagesSendParams()
-                                    {
-                                        PeerId = a.MessageNew.Message.PeerId,
-                                        UserId = a.MessageNew.Message.AdminAuthorId,
-                                        //UserId = a.MessageNew.Message.UserId,
-                                        ChatId = a.MessageNew.Message.ChatId,
-                                        Message = sendMessageText,
-                                        //ForwardMessages =Conversation(lastRandomId),
-                                        RandomId = getRandomMessageId()
+                                //        }
+                                //    }
+                                //    else if (forwardId != null)
+                                //    {
+                                //        sendMessageText =
+                                //            $"Пользователь [id{forwardId_1}|{forwardName_1} {LastName_1}] подает жалобу на пользователя [id{forwardId}|{forwardName} {LastName}], Ожидайте решение администратора беседы";
 
-                                    });
-                                    //api.Groups.GetMembers(new GroupsGetMembersParams()
-                                    //{
-                                    //    GroupId = Group_Id.ToString(),
-                                    //    Count = 50,
-                                    //    Offset = 0,
-                                    //    Fields = UsersFields.All,
-                                    //    Filter = GroupsMemberFilters.Managers,
-                                    //});
-                                    // replyMessage = a.MessageNew.Message.ReplyMessage;
-                                    // forwardId = replyMessage.FromId; // вытаскиваем ID того, на кого подают жалобу
-                                    // forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName;//получаем имя 
-                                    //var forwardId_1 = a.MessageNew.Message.FromId; // вытаскиваем ID того, кто кидает жалобу
-                                    // var forwardName_1 = api.Users.Get(new[] { (long)forwardId_1}, null, NameCase.Nom)[0].FirstName;
-                                    // api.Messages.Send(new MessagesSendParams()
-                                    // {
+                                //    }
 
-                                    //     PeerId = a.MessageNew.Message.PeerId,
-                                    //     UserId = a.MessageNew.Message.UserId,
-                                    //     ChatId = a.MessageNew.Message.ChatId,
-                                    //     Message =  $"Пользователь [id{forwardId_1}|{forwardName_1}] подал жалобу на пользователя [id{forwardId}|{forwardName}].",
-                                    //     // Forward = a.MessageNew.Message.AdminAuthorId. ,
-                                    //     RandomId = getRandomMessageId()
-                                    // }); ;
-                                    break;
+                                //    api.Messages.Send(new MessagesSendParams()
+                                //    {
+                                //        PeerId = a.MessageNew.Message.PeerId,
+                                //        UserId = a.MessageNew.Message.UserId,
+                                //        ChatId = a.MessageNew.Message.ChatId,
+                                //        Message = sendMessageText,
+                                //        //ForwardMessages =Conversation(lastRandomId),
+                                //        RandomId = getRandomMessageId()
+
+                                //    });
+
+                                //    // ID пользователя, на которого поступила жалоба
+                                //    var userId = forwardId;
+
+                                //    // Получаем последнее сообщение пользователя
+                                //    var message = api.Messages.GetHistory(new MessagesGetHistoryParams
+                                //    {
+                                //        UserId = userId,
+                                //        Count = 1
+                                //    }).Messages.First();
+
+                                //    // Получаем идентификатор чата
+                                //    var chatId = message.PeerId.Value;
+
+                                //    // Ищем администраторов беседы
+                                //    var chatMembers = api.Messages.GetConversationMembers(new long[] { chatId }, null, null, VkNet.Enums.Filters.UsersFields.All);
+
+
+                                //    // Получаем ID администраторов беседы
+                                //    var adminIds = chatMembers.Items
+                                //        .Where(x => x.IsAdmin)
+                                //        .Select(x => x.MemberId);
+
+                                //    // Отправляем сообщение с жалобой администраторам
+                                //    foreach (var adminId in adminIds)
+                                //    {
+                                //        api.Messages.Send(new MessagesSendParams
+                                //        {
+                                //            PeerId = adminId,
+                                //            Message = $"Жалоба на пользователя {userId}:\n\n{message.Body}"
+                                //        });
+                                //    }
+
+                                  break;
                                 case 5:
                                     api.Messages.Send(new MessagesSendParams()
                                     {
@@ -635,14 +632,6 @@ namespace TestVkBot
                                     }
                                     else if (forwardId != null)
                                     {
-                                        //long User_Rep_ID = (long)forwardId;
-                                        //if (!User_Data.ContainsKey(User_Rep_ID))
-                                        //{
-                                        //    User_Data[User_Rep_ID] = 0.0;
-                                        //}
-                                        //double User_Rep = User_Data[User_Rep_ID];
-                                        //User_Rep -= 0.04;
-                                        //User_Data[User_Rep_ID] = Math.Round(User_Rep, 3, MidpointRounding.AwayFromZero);
 
                                         User_Rep_ID = (long)forwardId;
 
@@ -702,7 +691,7 @@ namespace TestVkBot
 
                                     });
                                     break;
-                                case 7:
+                                case 7://рулетка
                                     if(a.MessageNew.Message.PeerId >= 2000000000)
                                     {
                                         forwardId = a.MessageNew.Message.FromId;
@@ -812,115 +801,142 @@ namespace TestVkBot
                                     break;
 
                                 case 8: //предупреждение 
-                                    try
-                                    {
-                                        replyMessage = a.MessageNew.Message.ReplyMessage;
-                                        sendMessageText = "Вы не указали, на кого хотите выдать предуплеждение"; // сообщение, которое отправится пользователю (дефолтное значение - ошибка)
 
-                                        forwardId = null;
-                                        forwardName = "";
-                                        LastName = "";
-                                        forwardId_1 = a.MessageNew.Message.FromId; // вытаскиваем ID того, кто кидает жалобу
-                                        forwardName_1 = api.Users.Get(new[] { (long)forwardId_1 }, null, NameCase.Nom)[0].FirstName;
-                                        LastName_1 = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
+                                //    var userId = forwardId;
+                                //    var message = api.Messages.GetHistory(new MessagesGetHistoryParams
+                                //    {
+                                //        UserId = userId,
+                                //        Count = 1
+                                //    }).Messages.First();
+                                //    long chatId = message.PeerId.Value;
+                                //    //long chatId = 123456; // здесь нужно указать идентификатор чата
 
-                                        if (replyMessage == null) // если нет ответа на сообщение, значит пытаемся вытащить через @
-                                        {
-                                            // ищем через регулярное выражение, кому отправляют жалобу
-                                            Regex regex = new Regex(@"[0-9]*\|");
-                                            MatchCollection matches = regex.Matches(messageText);
+                                //    // Получаем список участников чата
+                                //    var chatMembers = api.Messages.GetConversationMembers(new long[] { chatId }, null, null, null, VkNet.Enums.Filters.UsersFields.All);
 
-                                            if (matches.Count > 0) // если в сообщении указан ID
-                                            {
-                                                // на входе будет найдено что-то вида 122345|, убираем | и конвертируем в long
-                                                forwardId = long.Parse(matches[0].Value.Replace("|", "")); // вытаскиваем ID того, кому даётся жалоба
-                                                forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName; // получаем Имя того, кому даем жалобу
-                                                LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
-                                            }
-                                        }
-                                        else // если это ответ на какое-то сообщение
-                                        {
-                                            forwardId = replyMessage.FromId; // вытаскиваем ID того, кому даётся репутация
-                                            forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName; // получаем Имя того, кому даем жалобу
-                                            LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
-                                        }
+                                //    // Проверяем, есть ли администратор в списке участников
+                                //    bool isAdmin = chatMembers.Items.Any(x => x.IsAdmin);
+
+                                //    // Если отправитель не является администратором, выходим из метода
+                                //    if (!isAdmin)
+                                //    {
+                                //        return;
+                                //    }
+
+                                //    try
+                                //    {
+                                //        replyMessage = a.MessageNew.Message.ReplyMessage;
+                                //        sendMessageText = "Вы не указали, на кого хотите выдать предуплеждение"; // сообщение, которое отправится пользователю (дефолтное значение - ошибка)
+
+                                //        forwardId = null;
+                                //        forwardName = "";
+                                //        LastName = "";
+                                //        forwardId_1 = a.MessageNew.Message.FromId; // вытаскиваем ID того, кто кидает предупреждение
+                                //        forwardName_1 = api.Users.Get(new[] { (long)forwardId_1 }, null, NameCase.Nom)[0].FirstName;
+                                //        LastName_1 = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
+
+                                //        if (replyMessage == null) // если нет ответа на сообщение, значит пытаемся вытащить через @
+                                //        {
+                                //            // ищем через регулярное выражение, кому отправляют жалобу
+                                //            Regex regex = new Regex(@"[0-9]*\|");
+                                //            MatchCollection matches = regex.Matches(messageText);
+
+                                //            if (matches.Count > 0) // если в сообщении указан ID
+                                //            {
+                                //                // на входе будет найдено что-то вида 122345|, убираем | и конвертируем в long
+                                //                forwardId = long.Parse(matches[0].Value.Replace("|", "")); // вытаскиваем ID того, кому даётся жалоба
+                                //                forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName; // получаем Имя того, кому даем жалобу
+                                //                LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
+
+                                //            }
+                                //        }
+                                //        else // если это ответ на какое-то сообщение
+                                //        {
+                                //            forwardId = replyMessage.FromId; // вытаскиваем ID того, кому даётся репутация
+                                //            forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName; // получаем Имя того, кому даем жалобу
+                                //            LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
+                                //        }
 
 
-                                        if (forwardId != null && forwardId.Equals(a.MessageNew.Message.FromId))
-                                        {
-                                            Random light = new Random();
-                                            int answer = light.Next(1, 5);
-                                            switch (answer)
-                                            {
-                                                case 0:
-                                                    sendMessageText = $"&#128552; Что-то здесь не так, а вот что остается загадкой и для тебя, и для меня &#128521;";
-                                                    break;
-                                                case 1:
-                                                    sendMessageText = $"&#128552; Вы пишете загадодками написано, пойду к Гадалке схожу, пусть она мне раскроет мне эту тайну &#128302;";
-                                                    break;
-                                                case 2:
-                                                    sendMessageText = $"Полисмены проделали блестящую работу, уничтожив любые улики… " + "\r\n" + "Жаль, что я не шерлок Холмс, чтобы раскрыть ваш обман";
-                                                    break;
-                                                case 3:
-                                                    sendMessageText = $"Чем ты сам себе не угодил? Пойди и выспесь лучше)";
-                                                    break;
-                                                case 4:
-                                                    sendMessageText = $"Кто я?! Пойди проветрись! Уж очень ты душный &#128514;";
-                                                    break;
+                                //        if (forwardId != null && forwardId.Equals(a.MessageNew.Message.FromId))
+                                //        {
+                                //            Random light = new Random();
+                                //            int answer = light.Next(1, 5);
+                                //            switch (answer)
+                                //            {
+                                //                case 0:
+                                //                    sendMessageText = $"&#128552; Что-то здесь не так, а вот что остается загадкой и для тебя, и для меня &#128521;";
+                                //                    break;
+                                //                case 1:
+                                //                    sendMessageText = $"&#128552; Вы пишете загадодками написано, пойду к Гадалке схожу, пусть она мне раскроет мне эту тайну &#128302;";
+                                //                    break;
+                                //                case 2:
+                                //                    sendMessageText = $"Полисмены проделали блестящую работу, уничтожив любые улики… " + "\r\n" + "Жаль, что я не шерлок Холмс, чтобы раскрыть ваш обман";
+                                //                    break;
+                                //                case 3:
+                                //                    sendMessageText = $"Чем ты сам себе не угодил? Пойди и выспесь лучше)";
+                                //                    break;
+                                //                case 4:
+                                //                    sendMessageText = $"Кто я?! Пойди проветрись! Уж очень ты душный &#128514;";
+                                //                    break;
 
-                                            }
-                                        }
-                                        else if (forwardId != null)
-                                        {
-                                            //    long User_Req_ID = (long)forwardId;
-                                            //    if (!User_Data.ContainsKey(User_Req_ID))
-                                            //    {
-                                            //        User_Data[User_Req_ID] = 0.0;
-                                            //    }
-                                            //    double User_req = User_Data[User_Req_ID];
-                                            //    User_req += 1;
-                                            //    User_Data[User_Req_ID] = Math.Round(User_req, 3, MidpointRounding.AwayFromZero);
-                                            sendMessageText =
-                                            $"Пользователь [id{forwardId_1}|{forwardName_1} {LastName_1}] выдает предуплеждение пользователю [id{forwardId}|{forwardName} {LastName}]" + "\r\n" + $"Внимание! Если у вас будет 3 предупреждения и более, вы будете исключены из данной беседы!";
+                                //            }
+                                //        }
+                                //        else if (forwardId != null)
+                                //        {
+                                //            //    long User_Req_ID = (long)forwardId;
+                                //            //    if (!User_Data.ContainsKey(User_Req_ID))
+                                //            //    {
+                                //            //        User_Data[User_Req_ID] = 0.0;
+                                //            //    }
+                                //            //    double User_req = User_Data[User_Req_ID];
+                                //            //    User_req += 1;
+                                //            //    User_Data[User_Req_ID] = Math.Round(User_req, 3, MidpointRounding.AwayFromZero);
+                                //            sendMessageText =
+                                //            $"Пользователь [id{forwardId_1}|{forwardName_1} {LastName_1}] выдает предуплеждение пользователю [id{forwardId}|{forwardName} {LastName}]" + "\r\n" + $"Внимание! Если у вас будет 3 предупреждения и более, вы будете исключены из данной беседы!";
 
-                                        }
-                                        api.Groups.GetMembers(new GroupsGetMembersParams()
-                                        {
-                                            GroupId = Group_Id.ToString(),
-                                            Count = 500,
-                                            Offset = 0,
-                                            //  Fields = UsersFields.All,
-                                            Sort = GroupsSort.IdAsc,
-                                            Filter = GroupsMemberFilters.Managers,
-                                        });
-                                        api.Messages.Send(new MessagesSendParams()
-                                        {
-                                            PeerId = a.MessageNew.Message.PeerId,
-                                            UserId = a.MessageNew.Message.AdminAuthorId,
-                                            ChatId = a.MessageNew.Message.ChatId,
-                                            Message = sendMessageText,
-                                            RandomId = getRandomMessageId()
-                                        });
-                                    }
-                                    catch
-                                    {
-                                        sendMessageText = $"У вас нет прав для использования этой команды";
-                                        api.Messages.Send(new MessagesSendParams()
-                                        {
-                                            PeerId = a.MessageNew.Message.PeerId,
-                                            UserId = a.MessageNew.Message.UserId,
-                                            ChatId = a.MessageNew.Message.ChatId,
-                                            Message = sendMessageText,
-                                            RandomId = getRandomMessageId()
-                                        });
-                                    }
+                                //        }
+                                //        //api.Groups.GetMembers(new GroupsGetMembersParams()
+                                //        //{
+                                //        //    GroupId = Group_Id.ToString(),
+                                //        //    Count = 500,
+                                //        //    Offset = 0,
+                                //        //    //  Fields = UsersFields.All,
+                                //        //    Sort = GroupsSort.IdAsc,
+                                //        //    Filter = GroupsMemberFilters.Managers,
+                                //        //});
+                                //        api.Messages.Send(new MessagesSendParams()
+                                //        {
+                                //            PeerId = a.MessageNew.Message.PeerId,
+                                //            UserId = a.MessageNew.Message.AdminAuthorId,
+                                //            ChatId = a.MessageNew.Message.ChatId,
+                                //            Message = sendMessageText,
+                                //            RandomId = getRandomMessageId()
+                                //        });
+                                //    }
+                                //    catch
+                                //    {
+                                //        sendMessageText = $"У вас нет прав для использования этой команды";
+                                //        api.Messages.Send(new MessagesSendParams()
+                                //        {
+                                //            PeerId = a.MessageNew.Message.PeerId,
+                                //            UserId = a.MessageNew.Message.UserId,
+                                //            ChatId = a.MessageNew.Message.ChatId,
+                                //            Message = sendMessageText,
+                                //            RandomId = getRandomMessageId()
+                                //        });
+                                //    }
 
-                                    break;
+                                   break;
                                 case 9: //бан
                                     try
                                     {
                                         replyMessage = a.MessageNew.Message.ReplyMessage;
-                                        if (replyMessage == null)
+                                        sendMessageText = "";
+                                    forwardId_1 = a.MessageNew.Message.FromId; // вытаскиваем ID того, кто кидает жалобу
+                                    forwardName_1 = api.Users.Get(new[] { (long)forwardId_1 }, null, NameCase.Nom)[0].FirstName;
+                                    LastName_1 = api.Users.Get(new[] { (long)forwardId_1 }, null, NameCase.Nom)[0].LastName;
+                                    if (replyMessage == null)
                                         {
 
                                             Regex regex_ban = new Regex(@"[0-9]*\|");
@@ -934,33 +950,31 @@ namespace TestVkBot
                                                 forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName;
                                                 LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
 
-                                                //long Chat = 0;
-                                                //if (a.MessageNew.Message.ChatId != null)
+                                                // отправляем сообщение об успешном добавлении в черный список
+                                                ulong chatId = (ulong)((a.MessageNew.Message.PeerId) - 2000000000);
+                                                long? userId = forwardId;
+                                                //Console.WriteLine(chatId + "\r\n");
+                                                //Console.WriteLine(userId + "\r\n");
+                                                api.Messages.RemoveChatUser(chatId, userId);
+                                                //sendMessageText = $"Пользователь [id{forwardId}|{forwardName} {LastName}] исключен из беседы";
+
+
+                                                //api.Messages.Send(new MessagesSendParams()
                                                 //{
-                                                //    Chat = a.MessageNew.Message.ChatId.Value;
-                                                //}
-                                                ////var Chat = a.MessageNew.Message.ChatId;
-
-                                                //api.Messages.RemoveChatUser(chatId: (ulong)Chat, userId: forwardId);
-
-                                                User_Admin.Groups.BanUser(new GroupsBanUserParams()
-                                                {
-                                                    GroupId = Convert.ToInt64(Group_Id),
-                                                    UserId = forwardId,
-                                                    //EndDate = new DateTime(0, 0, 30, 0, 0, 0), //Данные указывающие год, месяц, день, час, минуту и секунду.
-                                                    Reason = 0,
-                                                    Comment = $"Тест работы функции",
-                                                    CommentVisible = true,
-                                                });
-                                                sendMessageText = $"Пользователь [id{forwardId}|{forwardName} {LastName}] добавлен в черный список, доступ в беседы ему ограничен";
-                                                api.Messages.Send(new MessagesSendParams()
+                                                //    PeerId = a.MessageNew.Message.PeerId,
+                                                //    UserId = a.MessageNew.Message.UserId,
+                                                //    ChatId = a.MessageNew.Message.ChatId,
+                                                //    Message = sendMessageText,
+                                                //    RandomId = getRandomMessageId()
+                                                //});
+                                                api.Messages.Send(new MessagesSendParams
                                                 {
                                                     PeerId = a.MessageNew.Message.PeerId,
-                                                    UserId = a.MessageNew.Message.UserId,
+                                                    UserId = forwardId,
                                                     ChatId = a.MessageNew.Message.ChatId,
-                                                    Message = sendMessageText,
-                                                    RandomId = getRandomMessageId()
-                                                });
+                                                    Message = $"Вы были исключены из беседы пользователем [id{forwardId_1}|{forwardName_1} {LastName_1}]",
+                                                    RandomId = getRandomMessageId(),
+                                                });                                                
                                             }
 
                                         }
@@ -969,27 +983,36 @@ namespace TestVkBot
                                             forwardId = replyMessage.FromId; // вытаскиваем ID того, кому даётся репутация
                                             forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName; // получаем Имя того, кому даем жалобу
                                             LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
-                                            User_Admin.Groups.BanUser(new GroupsBanUserParams()
-                                            {
-                                                GroupId = Convert.ToInt64(Group_Id),
-                                                UserId = forwardId,
-                                                //EndDate = new DateTime(0, 0, 30, 0, 0, 0), //Данные указывающие год, месяц, день, час, минуту и секунду.
-                                                Reason = 0,
-                                                Comment = $"Тест работы функции",
-                                                CommentVisible = true,
-                                            });
-                                            sendMessageText = $"Пользователь [id{forwardId}|{forwardName} {LastName}] добавлен в черный список, доступ в беседы ему ограничен";
+                                            // Добавляем пользователя в черный список на один час
 
-                                            api.Messages.Send(new MessagesSendParams()
+
+                                            // отправляем сообщение об успешном добавлении в черный список
+                                            ulong chatId = (ulong)((a.MessageNew.Message.PeerId)- 2000000000);
+                                            long? userId = forwardId;
+                                            //Console.WriteLine(chatId + "\r\n");
+                                            //Console.WriteLine(userId + "\r\n");
+                                            api.Messages.RemoveChatUser(chatId, userId);
+                                            //sendMessageText = $"Пользователь [id{forwardId}|{forwardName} {LastName}] исключен из беседы";
+
+
+                                            //api.Messages.Send(new MessagesSendParams()
+                                            //{
+                                            //    PeerId = a.MessageNew.Message.PeerId,
+                                            //    UserId = a.MessageNew.Message.UserId,
+                                            //    ChatId = a.MessageNew.Message.ChatId,
+                                            //    Message = sendMessageText,
+                                            //    RandomId = getRandomMessageId()
+                                            //});
+                                            api.Messages.Send(new MessagesSendParams
                                             {
                                                 PeerId = a.MessageNew.Message.PeerId,
-                                                UserId = a.MessageNew.Message.UserId,
+                                                UserId = forwardId,
                                                 ChatId = a.MessageNew.Message.ChatId,
-                                                Message = sendMessageText,
-                                                RandomId = getRandomMessageId()
+                                                Message = $"Вы были исключены из беседы пользователем [id{forwardId_1}|{forwardName_1} {LastName_1}]",
+                                                RandomId = getRandomMessageId(),
                                             });
+                                            
                                         }
-
                                     }
                                     catch
                                     {
@@ -1003,43 +1026,6 @@ namespace TestVkBot
                                             RandomId = getRandomMessageId()
                                         });
                                     }
-
-                                    //ChatId = a.MessageNew.Message.ChatId,
-                                    //UserId = a.MessageNew.Message.AdminAuthorId,
-                                    //api.Messages.GetChatUsers(new MessagesGetParams()
-                                    //{
-                                    //    //PeerId = a.MessageNew.Message.PeerId,
-                                    //    //UserId = a.MessageNew.Message.AdminAuthorId,
-                                    //    //ChatId = a.MessageNew.Message.ChatId,
-                                    //});                                //    {
-
-                                    //        Message = "Баны пользователей будут позже доступны.",
-                                    //        RandomId = new Random().Next(0, 100)
-                                    //    });
-                                    //Message replyMessage_1 = a.MessageNew.Message.ReplyMessage;
-
-                                    //long? forwardId1 = replyMessage_1.FromId; // вытаскиваем ID того, кому даётся репутация
-                                    //string forwardName1 = api.Users.Get(new[] { (long)forwardId1 }, null, NameCase.Nom)[0].FirstName; // получаем Имя того, кому даем реп
-
-                                    //if ()
-                                    //{
-                                    //    api.Messages.Send(new MessagesSendParams()
-                                    //    {
-                                    //        PeerId = a.MessageNew.Message.PeerId,
-                                    //        UserId = a.MessageNew.Message.AdminAuthorId,
-                                    //        ChatId = a.MessageNew.Message.ChatId,
-                                    //        Message = "Баны пользователей будут позже доступны.",
-                                    //        RandomId = new Random().Next(0, 100)
-                                    //    });
-                                    //}
-                                    //else
-                                    //{
-                                    //    return;
-
-                                    //}
-
-                                    //break;
-
                                     break;
 
                                 case 10:
@@ -1058,7 +1044,8 @@ namespace TestVkBot
                                                           : $" {currentUser.Rating} &#127942;" + "\r\n";
 
 
-                                        sendMessageText = $"&#128123; Добро Пожаловать в магазин репутации!" + "\r\n" + "\r\n" +
+                                        sendMessageText = 
+                                            $"&#128123; Добро Пожаловать в магазин репутации!" + "\r\n" + "\r\n" +
                                             $"Здесь за определенную плату, я могу добавить еще попытки поднимать/опускать репутацию " + "\r\n" + "\r\n" +
                                             $"Ну что, готов обменять часть своей репутации? &#128302;" + "\r\n" + "\r\n" +
                                             $"В ответ отправь мне да или нет" + "\r\n" + "\r\n" +
@@ -1175,22 +1162,25 @@ namespace TestVkBot
                                     if (a.MessageNew.Message.PeerId < 2000000000) // проверка на личное сообщение
                                     {
                                         sendMessageText = $"Пристегните ремни, мы отправляемся в прошлое";
-                                        using (Process process = new())
-                                        {
-                                            process.StartInfo.UseShellExecute = true;
-                                            process.StartInfo.FileName = "https://www.mirea.ru/about/history-of-the-university/history-of-the-university/";
-                                            process.Start();
-                                        }
+
+                                        var payload = new { url = "https://www.mirea.ru/about/history-of-the-university/history-of-the-university/" };
+
+                                        var keyboard_uri = new KeyboardBuilder()
+                                            .AddButton("Открыть ссылку", "open_link")
+                                            .SetInline()
+                                            .Build();
+
                                         api.Messages.Send(new MessagesSendParams()
                                         {
                                             PeerId = a.MessageNew.Message.FromId,
                                             UserId = a.MessageNew.Message.UserId,
                                             ChatId = a.MessageNew.Message.ChatId,
                                             Message = sendMessageText,
-                                            Keyboard = keyboard,
+                                            Keyboard = keyboard_uri,
                                             RandomId = getRandomMessageId()
                                         });
-                                    }                                   
+
+                                    }
                                     break;
                                 case 15:
                                     if (a.MessageNew.Message.PeerId < 2000000000) // проверка на личное сообщение
@@ -1282,25 +1272,42 @@ namespace TestVkBot
                                     var id = User_Admin.UserId.Value;
                                     if (a.MessageNew.Message.PeerId < 2000000000) // проверка на личное сообщение
                                     {
+                                        var photos = User_Admin.Photo.Get(new PhotoGetParams
+                                        {
+                                            AlbumId = PhotoAlbumType.Id(albumid),
+                                            OwnerId = -215289543,
+
+                                        });
+                                        api.Messages.Send(new MessagesSendParams
+                                        {
+                                            Attachments = photos,
+                                            PeerId = a.MessageNew.Message.PeerId,
+                                            UserId = a.MessageNew.Message.UserId,
+                                            ChatId = a.MessageNew.Message.ChatId,
+                                            Message = $"Карта кампуса Проспект Вернадского 78, Этот кампус очень интересен в плане строительства: Заходишь на территорию оказываешься на втором этаже, пройдешь по коридорам в институты окажешься на третьем этажа.",
+                                            RandomId = getRandomMessageId(),
+                                            Keyboard = keyboard,
+
+                                        });
                                         try
                                         {
-                                            var photos = User_Admin.Photo.Get(new PhotoGetParams
-                                            {
-                                                AlbumId = PhotoAlbumType.Id(albumid),
-                                                OwnerId = -215289543,
+                                            //var photos = User_Admin.Photo.Get(new PhotoGetParams
+                                            //{
+                                            //    AlbumId = PhotoAlbumType.Id(albumid),
+                                            //    OwnerId = 408155177,
 
-                                            });
-                                            api.Messages.Send(new MessagesSendParams
-                                            {
-                                                Attachments = photos,
-                                                PeerId = a.MessageNew.Message.PeerId,
-                                                UserId = a.MessageNew.Message.UserId,
-                                                ChatId = a.MessageNew.Message.ChatId,
-                                                Message = $"Карта кампуса Проспект Вернадского 78, Этот кампус очень интересен в плане строительства: Заходишь на территорию оказываешься на втором этаже, пройдешь по коридорам в институты окажешься на третьем этажа.",
-                                                RandomId = getRandomMessageId(),
-                                                Keyboard = keyboard,
+                                            //});
+                                            //api.Messages.Send(new MessagesSendParams
+                                            //{
+                                            //    Attachments = photos,
+                                            //    PeerId = a.MessageNew.Message.PeerId,
+                                            //    UserId = a.MessageNew.Message.UserId,
+                                            //    ChatId = a.MessageNew.Message.ChatId,
+                                            //    Message = $"Карта кампуса Проспект Вернадского 78, Этот кампус очень интересен в плане строительства: Заходишь на территорию оказываешься на втором этаже, пройдешь по коридорам в институты окажешься на третьем этажа.",
+                                            //    RandomId = getRandomMessageId(),
+                                            //    Keyboard = keyboard,
 
-                                            });
+                                            //});
                                         }
                                         catch
                                         {
