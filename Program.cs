@@ -7,13 +7,15 @@ using System.Diagnostics;
 using Bot.DataBase;
 using VkNet.Model.Keyboard;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using VkNet.Enums.Filters;
+using System.Diagnostics.Metrics;
 
 namespace TestVkBot
 {
     public class Program
     {
-        static string[] Commands = { "+реп", "/профиль", "/рейтинг", "/команды", "/шанс", "-реп", "/рулетка",
-            "/предупреждение", "/кик", "/магазин", "да", "нет" ,"FAQ",  "Информация об истории университета", "Расписание занятий", "Расположение кампусов",
+        static string[] Commands = { "+реп", "/профиль", "/рейтинг", "/команды", "/шанс","/предложение", "-реп", "/рулетка",
+            "/предупреждение", "/кик", "/магазин", "да", "нет" ,"FAQ",  "История университета", "Расписание занятий", "Расположение кампусов",
             "Вернуться Назад", "Карта Кампуса В-78", "Карта Кампуса В-86","Карта Кампуса МП-1","Карта Кампуса 1-й Щипковский пер., д. 23","Карта Кампуса С-20","Карта Кампуса СГ-22",
             "Карта Кампуса ул. Усачева, д.7/1"};
 
@@ -23,14 +25,14 @@ namespace TestVkBot
         private static int lastRandomId = 0;
 
         [Obsolete]
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var api = new VkApi();
-            api.Authorize(new ApiAuthParams() { AccessToken = Token });
+            await api.AuthorizeAsync(new ApiAuthParams() { AccessToken = Token });
             var s = api.Groups.GetLongPollServer(Group_Id);
             string ts = s.Ts;
-            var User_Admin = new VkApi();
-            User_Admin.Authorize(new ApiAuthParams() { AccessToken = Login});
+            //var User_Admin = new VkApi();
+            //User_Admin.Authorize(new ApiAuthParams() { AccessToken = Login});
             try
             {
                 while (true)
@@ -98,7 +100,7 @@ namespace TestVkBot
                                 }
                             }
                             var keyboard = new KeyboardBuilder()
-                            .AddButton("Информация об истории университета", "btnValue", KeyboardButtonColor.Primary)
+                            .AddButton("История университета", "btnValue", KeyboardButtonColor.Primary)
                             .SetInline(true)
                             .AddLine()
                             .AddButton("Расписание занятий", "btnValue", KeyboardButtonColor.Primary)
@@ -107,6 +109,7 @@ namespace TestVkBot
                             .AddButton("Расположение кампусов", "btnValue", KeyboardButtonColor.Primary)
                             .SetInline(true)
                             .Build();
+                            Console.WriteLine(commandId);
                             switch (commandId)
                             {
                                 case 0: // +реп
@@ -150,7 +153,8 @@ namespace TestVkBot
                                    
                                     if (VkUser.Affordable_reputation <= 0)
                                     {
-                                        api.Messages.Send(new MessagesSendParams()
+                                        VkUser.Affordable_reputation = 0;
+                                        await api.Messages.SendAsync(new MessagesSendParams()
                                         {
                                             PeerId = a.MessageNew.Message.FromId,
                                             UserId = a.MessageNew.Message.UserId,
@@ -261,7 +265,7 @@ namespace TestVkBot
                                         }
                                     }                                    
 
-                                    api.Messages.Send(new MessagesSendParams()
+                                    await api.Messages.SendAsync(new MessagesSendParams()
                                     {
                                         PeerId = a.MessageNew.Message.PeerId,
                                         UserId = a.MessageNew.Message.UserId,
@@ -303,7 +307,7 @@ namespace TestVkBot
                                                             $"&#128299; Количество патронов в револьвере: {currentUser.Available_risk} ";
 
                                         sendMessageText = $"\r\n{userText}";
-                                        api.Messages.Send(new MessagesSendParams()
+                                        await api.Messages.SendAsync(new MessagesSendParams()
                                         {
                                             PeerId = a.MessageNew.Message.FromId,
                                             UserId = a.MessageNew.Message.UserId,
@@ -337,7 +341,7 @@ namespace TestVkBot
                                                             $"&#9993; Число сообщений: {currentUser.Number_of_messages}" + "\r\n" +
                                                             $"&#128299; Количество патронов в револьвере: {currentUser.Available_risk}";
                                             sendMessageText = $"\r\n{userText}";
-                                            api.Messages.Send(new MessagesSendParams()
+                                            await api.Messages.SendAsync(new MessagesSendParams()
                                             {
                                                 PeerId = a.MessageNew.Message.FromId,
                                                 UserId = a.MessageNew.Message.UserId,
@@ -366,7 +370,7 @@ namespace TestVkBot
 
                                         }
                                         sendMessageText = $"&#127937; Топ 15 пользователей:\r\n{topUsersText}";
-                                        api.Messages.Send(new MessagesSendParams()
+                                        await api.Messages.SendAsync(new MessagesSendParams()
                                         {
                                             PeerId = a.MessageNew.Message.FromId,
                                             Message = sendMessageText,
@@ -376,9 +380,9 @@ namespace TestVkBot
                                   
                                     break;
                                 case 3: //команды
-                                    api.Messages.Send(new MessagesSendParams()
+                                    await api.Messages.SendAsync(new MessagesSendParams()
                                     {
-                                        PeerId = a.MessageNew.Message.PeerId,
+                                        PeerId = a.MessageNew.Message.FromId,
                                         UserId = a.MessageNew.Message.UserId,
                                         ChatId = a.MessageNew.Message.ChatId,
                                         Message = 
@@ -394,16 +398,11 @@ namespace TestVkBot
                                         RandomId = getRandomMessageId()
                                     });
                                     break;
-                                    forwardId = null;
-                                    forwardName = "";
-                                    LastName = "";
-                                    var forwardId_1 = a.MessageNew.Message.FromId; // вытаскиваем ID того, кто кидает жалобу
-                                    var forwardName_1 = api.Users.Get(new[] { (long)forwardId_1 }, null, NameCase.Nom)[0].FirstName;
-                                    var LastName_1 = api.Users.Get(new[] { (long)forwardId_1 }, null, NameCase.Nom)[0].LastName;
+                                    
                                 case 4: //шанс
                                     if (a.MessageNew.Message.PeerId >= 2000000000)
                                     {
-                                        api.Messages.Send(new MessagesSendParams()
+                                        await api.Messages.SendAsync(new MessagesSendParams()
                                         {
                                             PeerId = a.MessageNew.Message.PeerId,
                                             UserId = a.MessageNew.Message.UserId,
@@ -468,7 +467,7 @@ namespace TestVkBot
                                             message = "&#128165; Ваш шанс сто процентов, тут и гадать не надо!";
                                         }
                                         Thread.Sleep(4000);
-                                        api.Messages.Send(new MessagesSendParams()
+                                        await api.Messages.SendAsync(new MessagesSendParams()
                                         {
                                             PeerId = a.MessageNew.Message.PeerId,
                                             UserId = a.MessageNew.Message.UserId,
@@ -478,8 +477,8 @@ namespace TestVkBot
                                         });
                                     }
                                     break;
-                                case 5:
-                                    api.Messages.Send(new MessagesSendParams()
+                                case 5: //предложения 
+                                    await api.Messages.SendAsync(new MessagesSendParams()
                                     {
                                         PeerId = a.MessageNew.Message.PeerId,
                                         UserId = a.MessageNew.Message.UserId,
@@ -625,7 +624,8 @@ namespace TestVkBot
 
                                         if (VkUser.Affordable_reputation <= 0)
                                         {
-                                            api.Messages.Send(new MessagesSendParams()
+                                            VkUser.Affordable_reputation = 0;
+                                            await api.Messages.SendAsync(new MessagesSendParams()
                                             {
                                                 PeerId = a.MessageNew.Message.FromId,
                                                 UserId = a.MessageNew.Message.UserId,
@@ -636,7 +636,7 @@ namespace TestVkBot
                                             });
                                         }
                                     }
-                                    api.Messages.Send(new MessagesSendParams()
+                                    await api.Messages.SendAsync(new MessagesSendParams()
                                     {
                                         PeerId = a.MessageNew.Message.PeerId,
                                         UserId = a.MessageNew.Message.UserId,
@@ -684,7 +684,7 @@ namespace TestVkBot
                                         if (VkUser.Available_risk <= 0)
                                         {
                                             VkUser.Available_risk = 0;
-                                            api.Messages.Send(new MessagesSendParams()
+                                            await api.Messages.SendAsync(new MessagesSendParams()
                                             {
                                                 PeerId = a.MessageNew.Message.FromId,
                                                 UserId = a.MessageNew.Message.UserId,
@@ -782,7 +782,7 @@ namespace TestVkBot
 
                                                 ruletkaMessage = $"&#128128; {Lose} Минус 7 от кармы пользователя [id{forwardId}|{forwardName} {LastName}]. Текущий рейтинг: {Math.Round(VkUser.Rating, 3, MidpointRounding.AwayFromZero)}";
                                             }
-                                            api.Messages.Send(new MessagesSendParams()
+                                            await api.Messages.SendAsync(new MessagesSendParams()
                                             {
 
                                                 PeerId = a.MessageNew.Message.PeerId,
@@ -799,140 +799,152 @@ namespace TestVkBot
 
                                 case 8: //предупреждение 
 
-                                //    var userId = forwardId;
-                                //    var message = api.Messages.GetHistory(new MessagesGetHistoryParams
-                                //    {
-                                //        UserId = userId,
-                                //        Count = 1
-                                //    }).Messages.First();
-                                //    long chatId = message.PeerId.Value;
-                                //    //long chatId = 123456; // здесь нужно указать идентификатор чата
+                                    await api.Messages.SendAsync(new MessagesSendParams()
+                                    {
+                                        PeerId = a.MessageNew.Message.PeerId,
+                                        UserId = a.MessageNew.Message.UserId,
+                                        ChatId = a.MessageNew.Message.ChatId,
+                                        Message = $"Здесь пока ничего нет, но скоро будет =)",
+                                        RandomId = getRandomMessageId()
+                                    });
 
-                                //    // Получаем список участников чата
-                                //    var chatMembers = api.Messages.GetConversationMembers(new long[] { chatId }, null, null, null, VkNet.Enums.Filters.UsersFields.All);
+                                    //    var userId = forwardId;
+                                    //    var message = api.Messages.GetHistory(new MessagesGetHistoryParams
+                                    //    {
+                                    //        UserId = userId,
+                                    //        Count = 1
+                                    //    }).Messages.First();
+                                    //    long chatId = message.PeerId.Value;
+                                    //    //long chatId = 123456; // здесь нужно указать идентификатор чата
 
-                                //    // Проверяем, есть ли администратор в списке участников
-                                //    bool isAdmin = chatMembers.Items.Any(x => x.IsAdmin);
+                                    //    // Получаем список участников чата
+                                    //    var chatMembers = api.Messages.GetConversationMembers(new long[] { chatId }, null, null, null, VkNet.Enums.Filters.UsersFields.All);
 
-                                //    // Если отправитель не является администратором, выходим из метода
-                                //    if (!isAdmin)
-                                //    {
-                                //        return;
-                                //    }
+                                    //    // Проверяем, есть ли администратор в списке участников
+                                    //    bool isAdmin = chatMembers.Items.Any(x => x.IsAdmin);
 
-                                //    try
-                                //    {
-                                //        replyMessage = a.MessageNew.Message.ReplyMessage;
-                                //        sendMessageText = "Вы не указали, на кого хотите выдать предуплеждение"; // сообщение, которое отправится пользователю (дефолтное значение - ошибка)
+                                    //    // Если отправитель не является администратором, выходим из метода
+                                    //    if (!isAdmin)
+                                    //    {
+                                    //        return;
+                                    //    }
 
-                                //        forwardId = null;
-                                //        forwardName = "";
-                                //        LastName = "";
-                                //        forwardId_1 = a.MessageNew.Message.FromId; // вытаскиваем ID того, кто кидает предупреждение
-                                //        forwardName_1 = api.Users.Get(new[] { (long)forwardId_1 }, null, NameCase.Nom)[0].FirstName;
-                                //        LastName_1 = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
+                                    //    try
+                                    //    {
+                                    //        replyMessage = a.MessageNew.Message.ReplyMessage;
+                                    //        sendMessageText = "Вы не указали, на кого хотите выдать предуплеждение"; // сообщение, которое отправится пользователю (дефолтное значение - ошибка)
 
-                                //        if (replyMessage == null) // если нет ответа на сообщение, значит пытаемся вытащить через @
-                                //        {
-                                //            // ищем через регулярное выражение, кому отправляют жалобу
-                                //            Regex regex = new Regex(@"[0-9]*\|");
-                                //            MatchCollection matches = regex.Matches(messageText);
+                                    //        forwardId = null;
+                                    //        forwardName = "";
+                                    //        LastName = "";
+                                    //        forwardId_1 = a.MessageNew.Message.FromId; // вытаскиваем ID того, кто кидает предупреждение
+                                    //        forwardName_1 = api.Users.Get(new[] { (long)forwardId_1 }, null, NameCase.Nom)[0].FirstName;
+                                    //        LastName_1 = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
 
-                                //            if (matches.Count > 0) // если в сообщении указан ID
-                                //            {
-                                //                // на входе будет найдено что-то вида 122345|, убираем | и конвертируем в long
-                                //                forwardId = long.Parse(matches[0].Value.Replace("|", "")); // вытаскиваем ID того, кому даётся жалоба
-                                //                forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName; // получаем Имя того, кому даем жалобу
-                                //                LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
+                                    //        if (replyMessage == null) // если нет ответа на сообщение, значит пытаемся вытащить через @
+                                    //        {
+                                    //            // ищем через регулярное выражение, кому отправляют жалобу
+                                    //            Regex regex = new Regex(@"[0-9]*\|");
+                                    //            MatchCollection matches = regex.Matches(messageText);
 
-                                //            }
-                                //        }
-                                //        else // если это ответ на какое-то сообщение
-                                //        {
-                                //            forwardId = replyMessage.FromId; // вытаскиваем ID того, кому даётся репутация
-                                //            forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName; // получаем Имя того, кому даем жалобу
-                                //            LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
-                                //        }
+                                    //            if (matches.Count > 0) // если в сообщении указан ID
+                                    //            {
+                                    //                // на входе будет найдено что-то вида 122345|, убираем | и конвертируем в long
+                                    //                forwardId = long.Parse(matches[0].Value.Replace("|", "")); // вытаскиваем ID того, кому даётся жалоба
+                                    //                forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName; // получаем Имя того, кому даем жалобу
+                                    //                LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
+
+                                    //            }
+                                    //        }
+                                    //        else // если это ответ на какое-то сообщение
+                                    //        {
+                                    //            forwardId = replyMessage.FromId; // вытаскиваем ID того, кому даётся репутация
+                                    //            forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName; // получаем Имя того, кому даем жалобу
+                                    //            LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
+                                    //        }
 
 
-                                //        if (forwardId != null && forwardId.Equals(a.MessageNew.Message.FromId))
-                                //        {
-                                //            Random light = new Random();
-                                //            int answer = light.Next(1, 5);
-                                //            switch (answer)
-                                //            {
-                                //                case 0:
-                                //                    sendMessageText = $"&#128552; Что-то здесь не так, а вот что остается загадкой и для тебя, и для меня &#128521;";
-                                //                    break;
-                                //                case 1:
-                                //                    sendMessageText = $"&#128552; Вы пишете загадодками написано, пойду к Гадалке схожу, пусть она мне раскроет мне эту тайну &#128302;";
-                                //                    break;
-                                //                case 2:
-                                //                    sendMessageText = $"Полисмены проделали блестящую работу, уничтожив любые улики… " + "\r\n" + "Жаль, что я не шерлок Холмс, чтобы раскрыть ваш обман";
-                                //                    break;
-                                //                case 3:
-                                //                    sendMessageText = $"Чем ты сам себе не угодил? Пойди и выспесь лучше)";
-                                //                    break;
-                                //                case 4:
-                                //                    sendMessageText = $"Кто я?! Пойди проветрись! Уж очень ты душный &#128514;";
-                                //                    break;
+                                    //        if (forwardId != null && forwardId.Equals(a.MessageNew.Message.FromId))
+                                    //        {
+                                    //            Random light = new Random();
+                                    //            int answer = light.Next(1, 5);
+                                    //            switch (answer)
+                                    //            {
+                                    //                case 0:
+                                    //                    sendMessageText = $"&#128552; Что-то здесь не так, а вот что остается загадкой и для тебя, и для меня &#128521;";
+                                    //                    break;
+                                    //                case 1:
+                                    //                    sendMessageText = $"&#128552; Вы пишете загадодками написано, пойду к Гадалке схожу, пусть она мне раскроет мне эту тайну &#128302;";
+                                    //                    break;
+                                    //                case 2:
+                                    //                    sendMessageText = $"Полисмены проделали блестящую работу, уничтожив любые улики… " + "\r\n" + "Жаль, что я не шерлок Холмс, чтобы раскрыть ваш обман";
+                                    //                    break;
+                                    //                case 3:
+                                    //                    sendMessageText = $"Чем ты сам себе не угодил? Пойди и выспесь лучше)";
+                                    //                    break;
+                                    //                case 4:
+                                    //                    sendMessageText = $"Кто я?! Пойди проветрись! Уж очень ты душный &#128514;";
+                                    //                    break;
 
-                                //            }
-                                //        }
-                                //        else if (forwardId != null)
-                                //        {
-                                //            //    long User_Req_ID = (long)forwardId;
-                                //            //    if (!User_Data.ContainsKey(User_Req_ID))
-                                //            //    {
-                                //            //        User_Data[User_Req_ID] = 0.0;
-                                //            //    }
-                                //            //    double User_req = User_Data[User_Req_ID];
-                                //            //    User_req += 1;
-                                //            //    User_Data[User_Req_ID] = Math.Round(User_req, 3, MidpointRounding.AwayFromZero);
-                                //            sendMessageText =
-                                //            $"Пользователь [id{forwardId_1}|{forwardName_1} {LastName_1}] выдает предуплеждение пользователю [id{forwardId}|{forwardName} {LastName}]" + "\r\n" + $"Внимание! Если у вас будет 3 предупреждения и более, вы будете исключены из данной беседы!";
+                                    //            }
+                                    //        }
+                                    //        else if (forwardId != null)
+                                    //        {
+                                    //            //    long User_Req_ID = (long)forwardId;
+                                    //            //    if (!User_Data.ContainsKey(User_Req_ID))
+                                    //            //    {
+                                    //            //        User_Data[User_Req_ID] = 0.0;
+                                    //            //    }
+                                    //            //    double User_req = User_Data[User_Req_ID];
+                                    //            //    User_req += 1;
+                                    //            //    User_Data[User_Req_ID] = Math.Round(User_req, 3, MidpointRounding.AwayFromZero);
+                                    //            sendMessageText =
+                                    //            $"Пользователь [id{forwardId_1}|{forwardName_1} {LastName_1}] выдает предуплеждение пользователю [id{forwardId}|{forwardName} {LastName}]" + "\r\n" + $"Внимание! Если у вас будет 3 предупреждения и более, вы будете исключены из данной беседы!";
 
-                                //        }
-                                //        //api.Groups.GetMembers(new GroupsGetMembersParams()
-                                //        //{
-                                //        //    GroupId = Group_Id.ToString(),
-                                //        //    Count = 500,
-                                //        //    Offset = 0,
-                                //        //    //  Fields = UsersFields.All,
-                                //        //    Sort = GroupsSort.IdAsc,
-                                //        //    Filter = GroupsMemberFilters.Managers,
-                                //        //});
-                                //        api.Messages.Send(new MessagesSendParams()
-                                //        {
-                                //            PeerId = a.MessageNew.Message.PeerId,
-                                //            UserId = a.MessageNew.Message.AdminAuthorId,
-                                //            ChatId = a.MessageNew.Message.ChatId,
-                                //            Message = sendMessageText,
-                                //            RandomId = getRandomMessageId()
-                                //        });
-                                //    }
-                                //    catch
-                                //    {
-                                //        sendMessageText = $"У вас нет прав для использования этой команды";
-                                //        api.Messages.Send(new MessagesSendParams()
-                                //        {
-                                //            PeerId = a.MessageNew.Message.PeerId,
-                                //            UserId = a.MessageNew.Message.UserId,
-                                //            ChatId = a.MessageNew.Message.ChatId,
-                                //            Message = sendMessageText,
-                                //            RandomId = getRandomMessageId()
-                                //        });
-                                //    }
+                                    //        }
+                                    //        //api.Groups.GetMembers(new GroupsGetMembersParams()
+                                    //        //{
+                                    //        //    GroupId = Group_Id.ToString(),
+                                    //        //    Count = 500,
+                                    //        //    Offset = 0,
+                                    //        //    //  Fields = UsersFields.All,
+                                    //        //    Sort = GroupsSort.IdAsc,
+                                    //        //    Filter = GroupsMemberFilters.Managers,
+                                    //        //});
+                                    //        api.Messages.Send(new MessagesSendParams()
+                                    //        {
+                                    //            PeerId = a.MessageNew.Message.PeerId,
+                                    //            UserId = a.MessageNew.Message.AdminAuthorId,
+                                    //            ChatId = a.MessageNew.Message.ChatId,
+                                    //            Message = sendMessageText,
+                                    //            RandomId = getRandomMessageId()
+                                    //        });
+                                    //    }
+                                    //    catch
+                                    //    {
+                                    //        sendMessageText = $"У вас нет прав для использования этой команды";
+                                    //        api.Messages.Send(new MessagesSendParams()
+                                    //        {
+                                    //            PeerId = a.MessageNew.Message.PeerId,
+                                    //            UserId = a.MessageNew.Message.UserId,
+                                    //            ChatId = a.MessageNew.Message.ChatId,
+                                    //            Message = sendMessageText,
+                                    //            RandomId = getRandomMessageId()
+                                    //        });
+                                    //    }
 
-                                   break;
+                                    break;
                                 case 9: //кик
                                     try
                                     {
                                         replyMessage = a.MessageNew.Message.ReplyMessage;
                                         sendMessageText = "";
-                                        forwardId_1 = a.MessageNew.Message.FromId; // вытаскиваем ID того, кто кидает жалобу
-                                        forwardName_1 = api.Users.Get(new[] { (long)forwardId_1 }, null, NameCase.Nom)[0].FirstName;
-                                        LastName_1 = api.Users.Get(new[] { (long)forwardId_1 }, null, NameCase.Nom)[0].LastName;
+                                        forwardId = null;
+                                        forwardName = "";
+                                        LastName = "";
+                                        var forwardId_1 = a.MessageNew.Message.FromId; // вытаскиваем ID того, кто кидает жалобу
+                                        var forwardName_1 = api.Users.Get(new[] { (long)forwardId_1 }, null, NameCase.Nom)[0].FirstName;
+                                        var LastName_1 = api.Users.Get(new[] { (long)forwardId_1 }, null, NameCase.Nom)[0].LastName;
                                     if (replyMessage == null)
                                         {
 
@@ -946,7 +958,95 @@ namespace TestVkBot
                                                 forwardId = long.Parse(matches_ban[0].Value.Replace("|", "")); // вытаскиваем ID того, кому даётся осуждение
                                                 forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName;
                                                 LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
+                                                // Проверка администратора
+                                                var user = api.Users.Get(new[] { api.UserId.ToString()});
+                                                var admins = api.Groups.GetMembers(new GroupsGetMembersParams
+                                                {
+                                                    GroupId = Group_Id.ToString(),
+                                                    Filter = GroupsMemberFilters.Managers
+                                                });
 
+                                                // Перебор администраторов и предотвращение их исключения из беседы
+                                                foreach (var admin in admins)
+                                                {
+                                                    var isAdmin = admin.Id == user[0].Id;
+                                                    Console.WriteLine(isAdmin.ToString());
+
+                                                    if (isAdmin)
+                                                    {
+                                                        messageText = $"Пользователь [id{admin.Id}|{admin.FirstName} {admin.LastName}] является администратором. Исключение не выполнено.";
+
+                                                         api.Messages.Send(new MessagesSendParams
+                                                        {
+                                                            PeerId = a.MessageNew.Message.PeerId,
+                                                            UserId = a.MessageNew.Message.UserId,
+                                                            ChatId = a.MessageNew.Message.ChatId,
+                                                            Message = messageText,
+                                                            RandomId = getRandomMessageId(),
+                                                        });
+                                                    }
+
+                                                    if (forwardId != null && forwardId.Equals(a.MessageNew.Message.FromId))
+                                                    {
+                                                        await api.Messages.SendAsync(new MessagesSendParams
+                                                        {
+                                                            PeerId = a.MessageNew.Message.PeerId,
+                                                            UserId = a.MessageNew.Message.UserId,
+                                                            ChatId = a.MessageNew.Message.ChatId,
+                                                            Message = $"Самоликвидация невозможна, а оно тебе надо?",
+                                                            RandomId = getRandomMessageId(),
+                                                        });
+                                                    }
+                                                    else
+                                                    {
+                                                        // отправляем сообщение об успешном добавлении в черный список
+                                                        ulong chatId = (ulong)((a.MessageNew.Message.PeerId) - 2000000000);
+                                                        long? userId = forwardId;
+                                                        //Console.WriteLine(chatId + "\r\n");
+                                                        //Console.WriteLine(userId + "\r\n");
+                                                        api.Messages.RemoveChatUser(chatId, userId);
+                                                        //sendMessageText = $"Пользователь [id{forwardId}|{forwardName} {LastName}] исключен из беседы";
+
+
+                                                        //api.Messages.Send(new MessagesSendParams()
+                                                        //{
+                                                        //    PeerId = a.MessageNew.Message.PeerId,
+                                                        //    UserId = a.MessageNew.Message.UserId,
+                                                        //    ChatId = a.MessageNew.Message.ChatId,
+                                                        //    Message = sendMessageText,
+                                                        //    RandomId = getRandomMessageId()
+                                                        //});
+                                                        api.Messages.Send(new MessagesSendParams
+                                                        {
+                                                            PeerId = a.MessageNew.Message.PeerId,
+                                                            UserId = a.MessageNew.Message.UserId,
+                                                            ChatId = a.MessageNew.Message.ChatId,
+                                                            Message = $"Вы были исключены из беседы пользователем [id{forwardId_1}|{forwardName_1} {LastName_1}]",
+                                                            RandomId = getRandomMessageId(),
+                                                        });
+                                                    }
+                                                }
+                                            }                                           
+                                        }
+                                        else
+                                        {
+                                            forwardId = replyMessage.FromId; // вытаскиваем ID того, кому даётся репутация
+                                            forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName; // получаем Имя того, кому даем жалобу
+                                            LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
+                                            // Добавляем пользователя в черный список на один час
+                                            if (forwardId != null && forwardId.Equals(a.MessageNew.Message.FromId))
+                                            {
+                                                api.Messages.Send(new MessagesSendParams
+                                                {
+                                                    PeerId = a.MessageNew.Message.PeerId,
+                                                    UserId = a.MessageNew.Message.UserId,
+                                                    ChatId = a.MessageNew.Message.ChatId,
+                                                    Message = $"Самоликвидация невозможна, а оно тебе надо?",
+                                                    RandomId = getRandomMessageId(),
+                                                });
+                                            }
+                                            else
+                                            {
                                                 // отправляем сообщение об успешном добавлении в черный список
                                                 ulong chatId = (ulong)((a.MessageNew.Message.PeerId) - 2000000000);
                                                 long? userId = forwardId;
@@ -971,50 +1071,15 @@ namespace TestVkBot
                                                     ChatId = a.MessageNew.Message.ChatId,
                                                     Message = $"Вы были исключены из беседы пользователем [id{forwardId_1}|{forwardName_1} {LastName_1}]",
                                                     RandomId = getRandomMessageId(),
-                                                });                                                
-                                            }
-
-                                        }
-                                        else
-                                        {
-                                            forwardId = replyMessage.FromId; // вытаскиваем ID того, кому даётся репутация
-                                            forwardName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].FirstName; // получаем Имя того, кому даем жалобу
-                                            LastName = api.Users.Get(new[] { (long)forwardId }, null, NameCase.Nom)[0].LastName;
-                                            // Добавляем пользователя в черный список на один час
-
-
-                                            // отправляем сообщение об успешном добавлении в черный список
-                                            ulong chatId = (ulong)((a.MessageNew.Message.PeerId)- 2000000000);
-                                            long? userId = forwardId;
-                                            //Console.WriteLine(chatId + "\r\n");
-                                            //Console.WriteLine(userId + "\r\n");
-                                            api.Messages.RemoveChatUser(chatId, userId);
-                                            //sendMessageText = $"Пользователь [id{forwardId}|{forwardName} {LastName}] исключен из беседы";
-
-
-                                            //api.Messages.Send(new MessagesSendParams()
-                                            //{
-                                            //    PeerId = a.MessageNew.Message.PeerId,
-                                            //    UserId = a.MessageNew.Message.UserId,
-                                            //    ChatId = a.MessageNew.Message.ChatId,
-                                            //    Message = sendMessageText,
-                                            //    RandomId = getRandomMessageId()
-                                            //});
-                                            api.Messages.Send(new MessagesSendParams
-                                            {
-                                                PeerId = a.MessageNew.Message.PeerId,
-                                                UserId = forwardId,
-                                                ChatId = a.MessageNew.Message.ChatId,
-                                                Message = $"Вы были исключены из беседы пользователем [id{forwardId_1}|{forwardName_1} {LastName_1}]",
-                                                RandomId = getRandomMessageId(),
-                                            });
+                                                });
+                                            }                                                                                    
                                             
                                         }
                                     }
                                     catch
                                     {
                                         sendMessageText = $"У вас нет прав для использования этой команды";
-                                        api.Messages.Send(new MessagesSendParams()
+                                        await api.Messages.SendAsync(new MessagesSendParams()
                                         {
                                             PeerId = a.MessageNew.Message.PeerId,
                                             UserId = a.MessageNew.Message.UserId,
@@ -1049,8 +1114,8 @@ namespace TestVkBot
                                             $"Курс обмена такой:" + "\r\n" + "\r\n" +
                                             $"10 XP в обмен на два доступных репа" + "\r\n" + "\r\n" +
                                             $"Ваша репутация: {userText}" + "\r\n" + "\r\n";
-                                           
-                                        api.Messages.Send(new MessagesSendParams()
+
+                                        await api.Messages.SendAsync(new MessagesSendParams()
                                         {
 
                                             PeerId = a.MessageNew.Message.FromId,
@@ -1109,7 +1174,7 @@ namespace TestVkBot
                                             sendMessageText = $"К сожалению, у вас недостаточно опыта для оплаты!" + "\r\n" + "\r\n" +
                                                               $"&#128546;Приходи позже, когда у тебя будет больше опыта!" + "\r\n" + "\r\n";
                                         }
-                                        api.Messages.Send(new MessagesSendParams()
+                                        await api.Messages.SendAsync(new MessagesSendParams()
                                         {
                                             PeerId = a.MessageNew.Message.FromId,
                                             UserId = a.MessageNew.Message.UserId,
@@ -1121,11 +1186,12 @@ namespace TestVkBot
                                 case 12://нет
                                     if (a.MessageNew.Message.PeerId < 2000000000)
                                     {
-                                        sendMessageText = $"Очень жаль!" + "\r\n" + "\r\n" +
-                                               $"&#128546;Приходи позже!" + "\r\n" + "\r\n";
+                                        sendMessageText = 
+                                            $"Очень жаль!" + "\r\n"  +
+                                            $"&#128546;Приходи позже!" + "\r\n";
 
 
-                                        api.Messages.Send(new MessagesSendParams()
+                                        await api.Messages.SendAsync(new MessagesSendParams()
                                         {
 
                                             PeerId = a.MessageNew.Message.FromId,
@@ -1142,7 +1208,7 @@ namespace TestVkBot
                                     {
 
                                         sendMessageText = $"Пожалуйста, выберете интересующий вас раздел:";
-                                        api.Messages.Send(new MessagesSendParams()
+                                        await api.Messages.SendAsync(new MessagesSendParams()
                                         {
 
                                             PeerId = a.MessageNew.Message.FromId,
@@ -1171,7 +1237,7 @@ namespace TestVkBot
                                         //keyboard_uri.SetInline();
                                         //MessageKeyboard messageKeyboard = keyboard_uri.Build();
 
-                                        api.Messages.Send(new VkNet.Model.RequestParams.MessagesSendParams
+                                        await api.Messages.SendAsync(new VkNet.Model.RequestParams.MessagesSendParams
                                         {
                                             PeerId = a.MessageNew.Message.FromId,
                                             UserId = a.MessageNew.Message.UserId,
@@ -1194,7 +1260,7 @@ namespace TestVkBot
                                         //    process.StartInfo.FileName = "https://www.mirea.ru/schedule";
                                         //    process.Start();
                                         //}
-                                        api.Messages.Send(new MessagesSendParams()
+                                        await api.Messages.SendAsync(new MessagesSendParams()
                                         {
                                             PeerId = a.MessageNew.Message.FromId,
                                             UserId = a.MessageNew.Message.UserId,
@@ -1241,7 +1307,7 @@ namespace TestVkBot
                                           .AddLine()
                                           .AddButton("Вернуться Назад", "btnValue", KeyboardButtonColor.Negative)
                                           .Build();
-                                        api.Messages.Send(new MessagesSendParams()
+                                        await api.Messages.SendAsync(new MessagesSendParams()
                                         {
                                             PeerId = a.MessageNew.Message.FromId,
                                             UserId = a.MessageNew.Message.UserId,
@@ -1256,7 +1322,7 @@ namespace TestVkBot
                                     if (a.MessageNew.Message.PeerId < 2000000000) // проверка на личное сообщение
                                     {
                                         sendMessageText = $"Пожалуйста, выберете интересующий вас раздел:";
-                                        api.Messages.Send(new MessagesSendParams()
+                                        await api.Messages.SendAsync(new MessagesSendParams()
                                         {
                                             PeerId = a.MessageNew.Message.FromId,
                                             UserId = a.MessageNew.Message.UserId,
@@ -1271,53 +1337,99 @@ namespace TestVkBot
                                 case 18: //карта В-78
                                          //var userId = 12345678; //Получатель сообщения
                                     var albumid = 288967919;                                    
-                                    Console.WriteLine("\r\n" + "\r\n" + User_Admin.VkApiVersion.Version);                                   
-                                    Console.WriteLine("\r\n" + "\r\n" + $"Авторизован как сообщество: { api.IsAuthorized}");
-                                    Console.WriteLine("\r\n" + "\r\n" + $"Авторизован как пользователь: {User_Admin.IsAuthorized}");
+                                    //Console.WriteLine("\r\n" + "\r\n" + User_Admin.VkApiVersion.Version);                                   
+                                    //Console.WriteLine("\r\n" + "\r\n" + $"Авторизован как сообщество: { api.IsAuthorized}");
+                                    //Console.WriteLine("\r\n" + "\r\n" + $"Авторизован как пользователь: {User_Admin.IsAuthorized}");
+
+                                    //// Проверка авторизации пользователя по ключу доступа
+                                    //string accessToken = Login; // Укажите ваш ключ доступа
+                                    //try
+                                    //{
+                                    //    if (!string.IsNullOrEmpty(accessToken))
+                                    //    {
+                                    //        api.Authorize(new ApiAuthParams
+                                    //        {
+                                    //            AccessToken = accessToken
+                                    //        });
+
+                                    //        // Авторизация выполнена успешно
+                                    //        Console.WriteLine("Авторизация по ключу доступа выполнена успешно");
+                                    //    }
+                                    //}
+                                    //catch (Exception ex)
+                                    //{
+                                    //    // Ошибка авторизации
+                                    //    Console.WriteLine($"Ошибка авторизации: {ex.Message}");
+                                    //}
+
+
+
+
+
+
                                     //Console.WriteLine("\r\n" + "\r\n" + $"Разрешения на отправку вложений: {User_Admin.}");
                                     if (a.MessageNew.Message.PeerId < 2000000000) // проверка на личное сообщение
                                     {
-                                        //var photos = User_Admin.Photo.Get(new PhotoGetParams
-                                        //{
-                                        //    //AlbumId = PhotoAlbumType.Id(albumid),
-                                        //    //OwnerId = -215289543,
-
-                                        //});
-                                        api.Messages.Send(new MessagesSendParams
-                                        {                                            
-                                            PeerId = a.MessageNew.Message.PeerId,
-                                            UserId = a.MessageNew.Message.UserId,
-                                            ChatId = a.MessageNew.Message.ChatId,
-                                            //Attachments = photos,
-                                            Message = $"Карта кампуса Проспект Вернадского 78, Этот кампус очень интересен в плане строительства: Заходишь на территорию оказываешься на втором этаже, пройдешь по коридорам в институты окажешься на третьем этажа.",
-                                            RandomId = getRandomMessageId(),
-                                            Keyboard = keyboard,
-
-                                        });
                                         try
                                         {
-                                            //var photos = User_Admin.Photo.Get(new PhotoGetParams
-                                            //{
-                                            //    AlbumId = PhotoAlbumType.Id(albumid),
-                                            //    OwnerId = 408155177,
+                                            await api.Messages.SendAsync(new MessagesSendParams
+                                            {
+                                                PeerId = a.MessageNew.Message.PeerId,
+                                                UserId = a.MessageNew.Message.UserId,
+                                                ChatId = a.MessageNew.Message.ChatId,
+                                                Message = 
+                                                $"Карта кампуса Проспект Вернадского 78, Этот кампус очень интересен в плане строительства: " +
+                                                $"Заходишь на территорию оказываешься на втором этаже, " +
+                                                $"пройдешь по коридорам в институты окажешься на третьем этаже. \r\n  \r\n " +
+                                                $"https://disk.yandex.ru/d/h07eE3diHi4ayw",
+                                                RandomId = getRandomMessageId(),
+                                                Keyboard = keyboard,
+                                            });
+                                                //var photos = User_Admin.Photo.Get(new VkNet.Model.RequestParams.PhotoGetParams
+                                                //{
+                                                //    AlbumId = PhotoAlbumType.Id(albumid),
+                                                //    OwnerId = -215289543,
 
-                                            //});
-                                            //api.Messages.Send(new MessagesSendParams
-                                            //{
-                                            //    Attachments = photos,
-                                            //    PeerId = a.MessageNew.Message.PeerId,
-                                            //    UserId = a.MessageNew.Message.UserId,
-                                            //    ChatId = a.MessageNew.Message.ChatId,
-                                            //    Message = $"Карта кампуса Проспект Вернадского 78, Этот кампус очень интересен в плане строительства: Заходишь на территорию оказываешься на втором этаже, пройдешь по коридорам в институты окажешься на третьем этажа.",
-                                            //    RandomId = getRandomMessageId(),
-                                            //    Keyboard = keyboard,
+                                                //});
+                                                //// Проверка на наличие фотографий в альбоме сообщества
+                                                //if (photos?.Any() != true)
+                                                //{
+                                                //    Console.WriteLine("Альбом сообщества пуст");
+                                                //    return;
+                                                //}
+                                                //api.Messages.Send(new MessagesSendParams
+                                                //{
+                                                //    PeerId = a.MessageNew.Message.PeerId,
+                                                //    UserId = a.MessageNew.Message.UserId,
+                                                //    ChatId = a.MessageNew.Message.ChatId,
+                                                //    Attachments = photos,
+                                                //    Message = $"Карта кампуса Проспект Вернадского 78, Этот кампус очень интересен в плане строительства: Заходишь на территорию оказываешься на втором этаже, пройдешь по коридорам в институты окажешься на третьем этажа.",
+                                                //    RandomId = getRandomMessageId(),
+                                                //    Keyboard = keyboard,
 
-                                            //});
-                                        }
+                                                //});
+                                                ////var photos = User_Admin.Photo.Get(new PhotoGetParams
+                                                ////{
+                                                ////    AlbumId = PhotoAlbumType.Id(albumid),
+                                                ////    OwnerId = 408155177,
+
+                                                ////});
+                                                ////api.Messages.Send(new MessagesSendParams
+                                                ////{
+                                                ////    Attachments = photos,
+                                                ////    PeerId = a.MessageNew.Message.PeerId,
+                                                ////    UserId = a.MessageNew.Message.UserId,
+                                                ////    ChatId = a.MessageNew.Message.ChatId,
+                                                ////    Message = $"Карта кампуса Проспект Вернадского 78, Этот кампус очень интересен в плане строительства: Заходишь на территорию оказываешься на втором этаже, пройдешь по коридорам в институты окажешься на третьем этажа.",
+                                                ////    RandomId = getRandomMessageId(),
+                                                ////    Keyboard = keyboard,
+
+                                                ////});
+                                            }
                                         catch
                                         {
                                             sendMessageText = $"Ошибка в получении данных с сервера";
-                                            api.Messages.Send(new MessagesSendParams()
+                                            await api.Messages.SendAsync(new MessagesSendParams()
                                             {
                                                 PeerId = a.MessageNew.Message.FromId,
                                                 UserId = a.MessageNew.Message.UserId,
@@ -1326,29 +1438,33 @@ namespace TestVkBot
                                                 Keyboard = keyboard,
                                                 RandomId = getRandomMessageId()
                                             });
+
                                         }
+
+
                                     }                                                
                                     break;
                                 case 19: //карта В-86 
                                          //var userId = 12345678; //Получатель сообщения
                                     if (a.MessageNew.Message.PeerId < 2000000000) // проверка на личное сообщение
                                     {
-                                        albumid = 288967919;                                        
+                                        //albumid = 288967919;                                        
                                         try
                                         {
-                                            var photos = User_Admin.Photo.Get(new PhotoGetParams
-                                            {
-                                                AlbumId = PhotoAlbumType.Id(albumid),
-                                                OwnerId = -215289543,
+                                            //var photos = User_Admin.Photo.Get(new PhotoGetParams
+                                            //{
+                                            //    AlbumId = PhotoAlbumType.Id(albumid),
+                                            //    OwnerId = -215289543,
 
-                                            });
-                                            api.Messages.Send(new MessagesSendParams
+                                            //});
+                                            await api.Messages.SendAsync(new MessagesSendParams
                                             {
                                                 //Attachments = photos,
                                                 PeerId = a.MessageNew.Message.PeerId,
                                                 UserId = a.MessageNew.Message.UserId,
                                                 ChatId = a.MessageNew.Message.ChatId,
-                                                Message = $"Карта кампуса Проспект Вернадского 86, в разработке",
+                                                Message = $"Карта кампуса Проспект Вернадского 86, в разработке \r\n  \r\n " +
+                                                $"https://disk.yandex.ru/d/H9e7tOqWcACYbw",
                                                 RandomId = getRandomMessageId(),
                                                 Keyboard = keyboard,
 
@@ -1357,7 +1473,7 @@ namespace TestVkBot
                                         catch
                                         {
                                             sendMessageText = $"Ошибка в получении данных с сервера";
-                                            api.Messages.Send(new MessagesSendParams()
+                                            await api.Messages.SendAsync(new MessagesSendParams()
                                             {
                                                 PeerId = a.MessageNew.Message.FromId,
                                                 UserId = a.MessageNew.Message.UserId,
@@ -1377,19 +1493,20 @@ namespace TestVkBot
                                         albumid = 288967919;
                                         try
                                         {
-                                            var photos = User_Admin.Photo.Get(new PhotoGetParams
-                                            {
-                                                AlbumId = PhotoAlbumType.Id(albumid),
-                                                OwnerId = -215289543,
+                                            //var photos = User_Admin.Photo.Get(new PhotoGetParams
+                                            //{
+                                            //    AlbumId = PhotoAlbumType.Id(albumid),
+                                            //    OwnerId = -215289543,
 
-                                            });
-                                            api.Messages.Send(new MessagesSendParams
+                                            //});
+                                            await api.Messages.SendAsync(new MessagesSendParams
                                             {
                                                 //Attachments = photos,
                                                 PeerId = a.MessageNew.Message.PeerId,
                                                 UserId = a.MessageNew.Message.UserId,
                                                 ChatId = a.MessageNew.Message.ChatId,
-                                                Message = $"Карта кампуса МП-1, в разработке",
+                                                Message = $"Карта кампуса МП-1, в разработке \r\n \r\n" +
+                                                $"https://disk.yandex.ru/d/rk99eLrY0aIP2w",
                                                 RandomId = getRandomMessageId(),
                                                 Keyboard = keyboard,
 
@@ -1398,7 +1515,7 @@ namespace TestVkBot
                                         catch
                                         {
                                             sendMessageText = $"Ошибка в получении данных с сервера";
-                                            api.Messages.Send(new MessagesSendParams()
+                                            await api.Messages.SendAsync(new MessagesSendParams()
                                             {
                                                 PeerId = a.MessageNew.Message.FromId,
                                                 UserId = a.MessageNew.Message.UserId,
@@ -1417,19 +1534,20 @@ namespace TestVkBot
                                         albumid = 288967919;
                                         try
                                         {
-                                            var photos = User_Admin.Photo.Get(new PhotoGetParams
-                                            {
-                                                AlbumId = PhotoAlbumType.Id(albumid),
-                                                OwnerId = -215289543,
+                                            //var photos = User_Admin.Photo.Get(new PhotoGetParams
+                                            //{
+                                            //    AlbumId = PhotoAlbumType.Id(albumid),
+                                            //    OwnerId = -215289543,
 
-                                            });
-                                            api.Messages.Send(new MessagesSendParams
+                                            //});
+                                            await api.Messages.SendAsync(new MessagesSendParams
                                             {
                                                 //Attachments = photos,
                                                 PeerId = a.MessageNew.Message.PeerId,
                                                 UserId = a.MessageNew.Message.UserId,
                                                 ChatId = a.MessageNew.Message.ChatId,
-                                                Message = $"Карта Кампуса 1-й Щипковский пер., д. 23 в разработке",
+                                                Message = $"Карта Кампуса 1-й Щипковский пер., д. 23 в разработке \r\n \r\n" +
+                                                $"https://disk.yandex.ru/d/czwE_wlmDsWEVQ",
                                                 RandomId = getRandomMessageId(),
                                                 Keyboard = keyboard,
 
@@ -1438,7 +1556,7 @@ namespace TestVkBot
                                         catch
                                         {
                                             sendMessageText = $"Ошибка в получении данных с сервера";
-                                            api.Messages.Send(new MessagesSendParams()
+                                            await api.Messages.SendAsync(new MessagesSendParams()
                                             {
                                                 PeerId = a.MessageNew.Message.FromId,
                                                 UserId = a.MessageNew.Message.UserId,
@@ -1457,19 +1575,20 @@ namespace TestVkBot
                                         albumid = 288967919;
                                         try
                                         {
-                                            var photos = User_Admin.Photo.Get(new PhotoGetParams
-                                            {
-                                                AlbumId = PhotoAlbumType.Id(albumid),
-                                                OwnerId = -215289543,
+                                            //var photos = User_Admin.Photo.Get(new PhotoGetParams
+                                            //{
+                                            //    AlbumId = PhotoAlbumType.Id(albumid),
+                                            //    OwnerId = -215289543,
 
-                                            });
-                                            api.Messages.Send(new MessagesSendParams
+                                            //});
+                                            await api.Messages.SendAsync(new MessagesSendParams
                                             {
                                                 //Attachments = photos,
                                                 PeerId = a.MessageNew.Message.PeerId,
                                                 UserId = a.MessageNew.Message.UserId,
                                                 ChatId = a.MessageNew.Message.ChatId,
-                                                Message = $"Карта Кампуса С-20 в разработке",
+                                                Message = $"Карта Кампуса С-20 в разработке \r\n \r\n" +
+                                                $"https://disk.yandex.ru/d/YfsVI4qJbp5KRA",
                                                 RandomId = getRandomMessageId(),
                                                 Keyboard = keyboard,
 
@@ -1478,7 +1597,7 @@ namespace TestVkBot
                                         catch
                                         {
                                             sendMessageText = $"Ошибка в получении данных с сервера";
-                                            api.Messages.Send(new MessagesSendParams()
+                                            await api.Messages.SendAsync(new MessagesSendParams()
                                             {
                                                 PeerId = a.MessageNew.Message.FromId,
                                                 UserId = a.MessageNew.Message.UserId,
@@ -1498,19 +1617,20 @@ namespace TestVkBot
                                         albumid = 288967919;
                                         try
                                         {
-                                            var photos = User_Admin.Photo.Get(new PhotoGetParams
-                                            {
-                                                AlbumId = PhotoAlbumType.Id(albumid),
-                                                OwnerId = -215289543,
+                                            //var photos = User_Admin.Photo.Get(new PhotoGetParams
+                                            //{
+                                            //    AlbumId = PhotoAlbumType.Id(albumid),
+                                            //    OwnerId = -215289543,
 
-                                            });
-                                            api.Messages.Send(new MessagesSendParams
+                                            //});
+                                            await api.Messages.SendAsync(new MessagesSendParams
                                             {
                                                 //Attachments = photos,
                                                 PeerId = a.MessageNew.Message.PeerId,
                                                 UserId = a.MessageNew.Message.UserId,
                                                 ChatId = a.MessageNew.Message.ChatId,
-                                                Message = $"Карта Кампуса СГ-22 в разработке",
+                                                Message = $"Карта Кампуса СГ-22 в разработке \r\n \r\n" +
+                                                $"https://disk.yandex.ru/d/5PEZ4mG83vNkCA",
                                                 RandomId = getRandomMessageId(),
                                                 Keyboard = keyboard,
 
@@ -1519,7 +1639,7 @@ namespace TestVkBot
                                         catch
                                         {
                                             sendMessageText = $"Ошибка в получении данных с сервера";
-                                            api.Messages.Send(new MessagesSendParams()
+                                            await api.Messages.SendAsync(new MessagesSendParams()
                                             {
                                                 PeerId = a.MessageNew.Message.FromId,
                                                 UserId = a.MessageNew.Message.UserId,
@@ -1538,19 +1658,20 @@ namespace TestVkBot
                                         albumid = 288967919;
                                         try
                                         {
-                                            var photos = User_Admin.Photo.Get(new PhotoGetParams
-                                            {
-                                                AlbumId = PhotoAlbumType.Id(albumid),
-                                                OwnerId = -215289543,
+                                            //var photos = User_Admin.Photo.Get(new PhotoGetParams
+                                            //{
+                                            //    AlbumId = PhotoAlbumType.Id(albumid),
+                                            //    OwnerId = -215289543,
 
-                                            });
-                                            api.Messages.Send(new MessagesSendParams
+                                            //});
+                                            await api.Messages.SendAsync(new MessagesSendParams
                                             {
                                                 //Attachments = photos,
                                                 PeerId = a.MessageNew.Message.PeerId,
                                                 UserId = a.MessageNew.Message.UserId,
                                                 ChatId = a.MessageNew.Message.ChatId,
-                                                Message = $"Карта Кампуса ул. Усачева, д.7/1 в разработке",
+                                                Message = $"Карта Кампуса ул. Усачева, д.7/1 в разработке \r\n \r\n" +
+                                                $"https://disk.yandex.ru/d/gsngDhsl0HgsdA",
                                                 RandomId = getRandomMessageId(),
                                                 Keyboard = keyboard,
 
@@ -1559,7 +1680,7 @@ namespace TestVkBot
                                         catch
                                         {
                                             sendMessageText = $"Ошибка в получении данных с сервера";
-                                            api.Messages.Send(new MessagesSendParams()
+                                            await api.Messages.SendAsync(new MessagesSendParams()
                                             {
                                                 PeerId = a.MessageNew.Message.FromId,
                                                 UserId = a.MessageNew.Message.UserId,
